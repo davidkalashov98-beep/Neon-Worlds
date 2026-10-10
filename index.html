@@ -1,0 +1,1351 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Neon Worlds</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; user-select: none; -webkit-tap-highlight-color: transparent; }
+  body { font-family: 'Arial', sans-serif; background: #000; display: flex; justify-content: center; align-items: center; min-height: 100vh; overflow: hidden; }
+  #game { position: relative; width: 420px; height: 100vh; max-width: 100vw; max-height: 100vh; background: radial-gradient(ellipse at center, #0a0520 0%, #000 100%); overflow: hidden; touch-action: none; }
+  canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+  #hud { position: absolute; top: 0; left: 0; right: 0; padding: 8px 10px; pointer-events: none; z-index: 10; }
+  .player-info { display: flex; align-items: center; gap: 8px; background: rgba(10, 5, 30, 0.85); border: 2px solid #00ffff; border-radius: 12px; padding: 6px 10px; box-shadow: 0 0 15px rgba(0, 255, 255, 0.4); }
+  .avatar { width: 36px; height: 36px; border-radius: 50%; border: 2px solid #00ffff; background: radial-gradient(circle, #1a0a3a, #000); display: flex; align-items: center; justify-content: center; box-shadow: 0 0 10px #00ffff; flex-shrink: 0; }
+  .avatar svg { width: 24px; height: 24px; }
+  .stats { flex: 1; }
+  .name-row { display: flex; justify-content: space-between; font-size: 11px; color: #00ffff; font-weight: bold; text-shadow: 0 0 5px #00ffff; }
+  .hp-bar, .xp-bar { width: 100%; background: rgba(0,0,0,0.7); border-radius: 3px; overflow: hidden; margin-top: 3px; border: 1px solid rgba(0,255,255,0.2); }
+  .hp-bar { height: 7px; } .xp-bar { height: 5px; margin-top: 2px; }
+  .hp-fill { height: 100%; background: linear-gradient(90deg, #ff0040, #ff4080); box-shadow: 0 0 8px #ff0040 inset; transition: width 0.2s; }
+  .xp-fill { height: 100%; background: linear-gradient(90deg, #ffd700, #ff8c00); box-shadow: 0 0 8px #ffd700 inset; transition: width 0.2s; }
+  #minimap { position: absolute; top: 70px; right: 10px; width: 90px; height: 90px; background: rgba(0,0,0,0.7); border: 2px solid #00ffff; border-radius: 8px; box-shadow: 0 0 10px rgba(0,255,255,0.4); z-index: 10; }
+  #worldInfo { position: absolute; top: 70px; left: 10px; background: rgba(0,0,0,0.8); border: 2px solid #ff8c00; border-radius: 8px; padding: 6px 10px; z-index: 10; font-size: 10px; text-shadow: 0 0 5px currentColor; max-width: 120px; }
+  #worldInfo .world-name { color: #ff8c00; font-weight: bold; font-size: 11px; display: flex; align-items: center; gap: 4px; }
+  #worldInfo .world-name svg { width: 14px; height: 14px; }
+  #worldInfo .level-info { color: #ffd700; font-size: 10px; margin-top: 3px; }
+  #joystick { position: absolute; bottom: 20px; left: 20px; width: 120px; height: 120px; border-radius: 50%; background: rgba(0, 255, 255, 0.05); border: 2px solid rgba(0, 255, 255, 0.4); z-index: 20; box-shadow: 0 0 20px rgba(0,255,255,0.2) inset; }
+  #stick { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 50px; height: 50px; border-radius: 50%; background: radial-gradient(circle, #00ffff, #0080ff); box-shadow: 0 0 15px #00ffff; pointer-events: none; }
+  #actions { position: absolute; bottom: 20px; right: 20px; display: flex; flex-direction: column; gap: 12px; z-index: 20; }
+  .action-btn { width: 68px; height: 68px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.1s; position: relative; border: 2px solid; }
+  .action-btn:active { transform: scale(0.9); }
+  .action-btn svg { width: 34px; height: 34px; }
+  .action-btn.cooldown::after { content: ''; position: absolute; inset: 0; border-radius: 50%; background: conic-gradient(from 0deg, rgba(0,0,0,0.75) var(--cd, 0deg), transparent var(--cd, 0deg)); pointer-events: none; }
+  .action-btn.attack { border-color: #ff8c00; background: radial-gradient(circle, rgba(255, 140, 0, 0.3), rgba(255, 140, 0, 0.1)); box-shadow: 0 0 15px rgba(255,140,0,0.5); }
+  .action-btn.skill { border-color: #ffd700; background: radial-gradient(circle, rgba(255, 215, 0, 0.3), rgba(255, 215, 0, 0.1)); box-shadow: 0 0 15px rgba(255,215,0,0.5); }
+  #bossBar { position: absolute; top: 55px; left: 50%; transform: translateX(-50%); width: 70%; background: rgba(0,0,0,0.85); border: 2px solid #ff4500; border-radius: 8px; padding: 5px 8px; z-index: 15; display: none; box-shadow: 0 0 20px rgba(255,69,0,0.6); }
+  #bossBar .boss-name { color: #ff4500; font-size: 10px; font-weight: bold; text-align: center; text-shadow: 0 0 5px #ff4500; margin-bottom: 3px; display: flex; align-items: center; justify-content: center; gap: 4px; }
+  #bossBar .boss-name svg { width: 14px; height: 14px; }
+  #bossBar .boss-hp { width: 100%; height: 9px; background: rgba(0,0,0,0.7); border-radius: 5px; overflow: hidden; }
+  #bossBar .boss-hp-fill { height: 100%; background: linear-gradient(90deg, #ff4500, #ff8c00); box-shadow: 0 0 10px #ff4500 inset; transition: width 0.15s; }
+  #notifications { position: absolute; top: 170px; left: 50%; transform: translateX(-50%); z-index: 30; pointer-events: none; display: flex; flex-direction: column; align-items: center; gap: 5px; }
+  .notif { padding: 6px 14px; background: rgba(0,0,0,0.85); border: 1px solid #ff8c00; border-radius: 20px; color: #ff8c00; font-size: 11px; font-weight: bold; text-shadow: 0 0 5px #ff8c00; animation: notifAnim 2.2s forwards; white-space: nowrap; }
+  @keyframes notifAnim { 0% { opacity: 0; transform: translateY(-10px); } 15% { opacity: 1; transform: translateY(0); } 85% { opacity: 1; transform: translateY(0); } 100% { opacity: 0; transform: translateY(-10px); } }
+  .screen { position: absolute; inset: 0; background: radial-gradient(ellipse at center, #1a0a05 0%, #000 100%); z-index: 100; color: #fff; display: flex; flex-direction: column; align-items: center; overflow-y: auto; padding: 20px; scrollbar-width: thin; scrollbar-color: #ff8c00 #000; }
+  .screen::-webkit-scrollbar { width: 6px; }
+  .screen::-webkit-scrollbar-track { background: #000; }
+  .screen::-webkit-scrollbar-thumb { background: #ff8c00; border-radius: 3px; }
+  .screen h1 { font-size: 34px; letter-spacing: 4px; text-align: center; background: linear-gradient(90deg, #ff8c00, #ff4500, #ffd700); background-size: 200% auto; -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; animation: titleGlow 3s linear infinite; filter: drop-shadow(0 0 20px rgba(255,140,0,0.6)); margin-top: 10px; }
+  @keyframes titleGlow { to { background-position: 200% center; } }
+  .screen h2 { font-size: 20px; color: #ff8c00; text-shadow: 0 0 10px #ff8c00; letter-spacing: 2px; margin: 15px 0 8px; text-align: center; display: flex; align-items: center; gap: 8px; justify-content: center; }
+  .screen h2 svg { width: 22px; height: 22px; }
+  .screen p { font-size: 12px; color: #888; text-align: center; margin: 4px 0; }
+  .btn { background: linear-gradient(180deg, rgba(255,140,0,0.2), rgba(255,140,0,0.05)); color: #ff8c00; border: 2px solid #ff8c00; padding: 12px 32px; border-radius: 8px; font-size: 15px; font-weight: bold; cursor: pointer; letter-spacing: 2px; text-shadow: 0 0 10px #ff8c00; box-shadow: 0 0 20px rgba(255,140,0,0.3), inset 0 0 20px rgba(255,140,0,0.1); transition: all 0.2s; margin: 6px 0; font-family: inherit; display: flex; align-items: center; gap: 8px; justify-content: center; }
+  .btn svg { width: 18px; height: 18px; }
+  .btn:active { transform: scale(0.95); }
+  .btn.pink { border-color: #ff00ff; color: #ff00ff; text-shadow: 0 0 10px #ff00ff; box-shadow: 0 0 20px rgba(255,0,255,0.3), inset 0 0 20px rgba(255,0,255,0.1); background: linear-gradient(180deg, rgba(255,0,255,0.2), rgba(255,0,255,0.05)); }
+  .btn.gold { border-color: #ffd700; color: #ffd700; text-shadow: 0 0 10px #ffd700; box-shadow: 0 0 20px rgba(255,215,0,0.3), inset 0 0 20px rgba(255,215,0,0.1); background: linear-gradient(180deg, rgba(255,215,0,0.2), rgba(255,215,0,0.05)); }
+  .hidden { display: none !important; }
+  #mainMenu { justify-content: flex-start; padding: 12px 14px 20px; background: radial-gradient(ellipse at top, #2a1005 0%, #0a0500 50%, #000 100%); }
+  .top-bar { display: flex; gap: 8px; justify-content: flex-end; width: 100%; max-width: 380px; margin-bottom: 10px; }
+  .top-resource { background: rgba(0,0,0,0.7); border: 2px solid #ffd700; border-radius: 20px; padding: 4px 12px 4px 8px; display: flex; align-items: center; gap: 5px; color: #ffd700; font-weight: bold; font-size: 13px; text-shadow: 0 0 5px #ffd700; box-shadow: 0 0 8px rgba(255,215,0,0.3); }
+  .top-resource svg { width: 16px; height: 16px; }
+  .hero-row { display: flex; align-items: center; gap: 12px; width: 100%; max-width: 380px; background: linear-gradient(135deg, rgba(255,140,0,0.12), rgba(255,69,0,0.05)); border: 2px solid #ff8c00; border-radius: 14px; padding: 10px 12px; margin-bottom: 12px; box-shadow: 0 0 18px rgba(255,140,0,0.25); }
+  .hero-avatar { width: 56px; height: 56px; border-radius: 50%; border: 3px solid #ffd700; background: radial-gradient(circle, #2a1005, #000); display: flex; align-items: center; justify-content: center; box-shadow: 0 0 14px rgba(255,215,0,0.6); flex-shrink: 0; overflow: hidden; }
+  .hero-avatar svg { width: 36px; height: 36px; }
+  .hero-info { flex: 1; min-width: 0; }
+  .hero-name { color: #ffd700; font-weight: bold; font-size: 14px; text-shadow: 0 0 6px #ff8c00; letter-spacing: 1px; }
+  .hero-level { color: #ff8c00; font-size: 11px; font-weight: bold; margin-top: 2px; text-shadow: 0 0 5px #ff8c00; }
+  .hero-xp-bar { width: 100%; height: 6px; margin-top: 6px; background: rgba(0,0,0,0.6); border-radius: 3px; overflow: hidden; border: 1px solid rgba(255,215,0,0.4); }
+  .hero-xp-fill { height: 100%; background: linear-gradient(90deg, #ff8c00, #ffd700); box-shadow: 0 0 8px #ffd700 inset; transition: width 0.4s; }
+  .season-banner { position: relative; width: 100%; max-width: 380px; height: 130px; border-radius: 16px; overflow: hidden; cursor: pointer; margin-bottom: 14px; border: 2px solid #ff8c00; box-shadow: 0 0 25px rgba(255,140,0,0.4); transition: transform 0.2s; }
+  .season-banner:active { transform: scale(0.98); }
+  .season-banner-bg { position: absolute; inset: 0; background: radial-gradient(circle at 80% 30%, rgba(255,140,0,0.55), transparent 55%), radial-gradient(circle at 20% 80%, rgba(255,69,0,0.4), transparent 55%), linear-gradient(135deg, #2a1005, #0a0500); }
+  .season-banner-content { position: relative; z-index: 2; padding: 14px 18px; display: flex; flex-direction: column; height: 100%; justify-content: center; }
+  .season-tag { color: #ffd700; font-size: 10px; font-weight: bold; letter-spacing: 3px; text-shadow: 0 0 6px #ffd700; }
+  .season-title { font-size: 28px; font-weight: bold; letter-spacing: 3px; background: linear-gradient(90deg, #ffd700, #ff8c00, #ff4500); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; filter: drop-shadow(0 0 10px rgba(255,140,0,0.7)); margin: 2px 0; }
+  .season-sub { color: #ff8c00; font-size: 10px; font-weight: bold; letter-spacing: 2px; text-shadow: 0 0 5px #ff8c00; }
+  .season-badge { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); width: 70px; height: 70px; display: flex; align-items: center; justify-content: center; filter: drop-shadow(0 0 12px rgba(255,140,0,0.9)); animation: pumpkinBob 2.5s ease-in-out infinite; }
+  .season-badge svg { width: 64px; height: 64px; }
+  @keyframes pumpkinBob { 0%, 100% { transform: translateY(-50%) rotate(-6deg); } 50% { transform: translateY(-55%) rotate(6deg); } }
+  .big-play-btn { width: 100%; max-width: 380px; padding: 16px; border-radius: 14px; border: 3px solid #ffd700; background: linear-gradient(180deg, #ff8c00, #ff4500); color: #fff; font-size: 20px; font-weight: bold; letter-spacing: 4px; font-family: inherit; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; box-shadow: 0 0 30px rgba(255,140,0,0.7), inset 0 -4px 0 rgba(0,0,0,0.3); text-shadow: 0 2px 4px rgba(0,0,0,0.5); transition: all 0.15s; margin-bottom: 14px; }
+  .big-play-btn:active { transform: scale(0.97); }
+  .big-play-btn svg { width: 26px; height: 26px; filter: drop-shadow(0 0 4px #fff); }
+  .bottom-tabs { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; width: 100%; max-width: 380px; }
+  .tab-btn { background: linear-gradient(180deg, rgba(255,140,0,0.18), rgba(255,140,0,0.05)); border: 2px solid #ff8c00; border-radius: 12px; padding: 10px 4px; display: flex; flex-direction: column; align-items: center; gap: 4px; color: #ff8c00; font-size: 9px; font-weight: bold; letter-spacing: 1px; cursor: pointer; text-shadow: 0 0 5px #ff8c00; box-shadow: 0 0 10px rgba(255,140,0,0.25); transition: all 0.15s; font-family: inherit; }
+  .tab-btn:active { transform: scale(0.94); }
+  .tab-btn svg { width: 22px; height: 22px; color: #ffd700; filter: drop-shadow(0 0 4px #ff8c00); }
+  .tab-btn.has-reward { border-color: #ffd700; color: #ffd700; text-shadow: 0 0 10px #ffd700; animation: rewardPulse 1.5s ease-in-out infinite; }
+  .tab-btn.has-reward svg { color: #ffd700; filter: drop-shadow(0 0 8px #ffd700); }
+  @keyframes rewardPulse { 0%, 100% { box-shadow: 0 0 15px rgba(255,215,0,0.5), inset 0 0 10px rgba(255,215,0,0.2); } 50% { box-shadow: 0 0 30px rgba(255,215,0,1), inset 0 0 20px rgba(255,215,0,0.5); } }
+  .menu-footer { margin-top: 14px; font-size: 10px; color: #888; text-align: center; }
+  .menu-footer span { color: #ffd700; font-weight: bold; }
+  .shop-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; width: 100%; max-width: 380px; margin: 10px 0; }
+  .skin-card { background: rgba(40, 15, 0, 0.6); border: 2px solid #444; border-radius: 10px; padding: 8px; text-align: center; cursor: pointer; transition: all 0.2s; position: relative; }
+  .skin-card.owned { border-color: #ff8c00; box-shadow: 0 0 10px rgba(255,140,0,0.4); }
+  .skin-card.equipped { border-color: #ffd700; box-shadow: 0 0 15px rgba(255,215,0,0.6); }
+  .skin-card.owned::before { content: '✓'; position: absolute; top: 2px; right: 4px; color: #ff8c00; font-weight: bold; font-size: 11px; }
+  .skin-card.equipped::before { content: '★'; color: #ffd700; }
+  .skin-preview { width: 48px; height: 48px; margin: 0 auto 4px; display: flex; align-items: center; justify-content: center; border-radius: 50%; background: radial-gradient(circle, rgba(255,140,0,0.1), transparent); }
+  .skin-preview svg { width: 36px; height: 36px; }
+  .skin-name { font-size: 9px; color: #ff8c00; font-weight: bold; margin: 3px 0; }
+  .skin-price { font-size: 10px; color: #ffd700; display: flex; align-items: center; justify-content: center; gap: 2px; }
+  .skin-price svg { width: 10px; height: 10px; }
+  .world-grid { display: flex; flex-direction: column; gap: 10px; width: 100%; max-width: 340px; margin: 10px 0; }
+  .world-card { background: rgba(40, 15, 0, 0.6); border: 2px solid #444; border-radius: 10px; padding: 10px 12px; display: flex; align-items: center; gap: 12px; cursor: pointer; transition: all 0.2s; }
+  .world-card:active { transform: scale(0.98); }
+  .world-icon-wrap { width: 48px; height: 48px; flex-shrink: 0; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 2px solid; }
+  .world-icon-wrap svg { width: 32px; height: 32px; }
+  .world-info { flex: 1; }
+  .world-title { font-size: 13px; font-weight: bold; text-shadow: 0 0 6px currentColor; }
+  .world-desc { font-size: 10px; color: #888; margin-top: 2px; }
+  .world-record { font-size: 10px; color: #ffd700; margin-top: 3px; }
+  .death-stats { background: rgba(40, 15, 0, 0.6); border: 2px solid #ff4500; border-radius: 12px; padding: 14px 18px; width: 90%; max-width: 300px; margin: 12px 0; box-shadow: 0 0 20px rgba(255,69,0,0.3); }
+  .stat-line { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; font-size: 12px; color: #ff8c00; }
+  .stat-line svg { width: 16px; height: 16px; }
+  .stat-line .label { display: flex; align-items: center; gap: 6px; }
+  .stat-line .value { color: #ffd700; font-weight: bold; }
+  .upgrade-item { display: flex; justify-content: space-between; align-items: center; width: 100%; max-width: 340px; background: rgba(255, 140, 0, 0.05); border: 1px solid rgba(255, 140, 0, 0.3); padding: 8px 12px; margin: 4px 0; border-radius: 6px; font-size: 12px; color: #ff8c00; }
+  .upgrade-item .label { display: flex; align-items: center; gap: 6px; }
+  .upgrade-item .label svg { width: 16px; height: 16px; }
+  .upgrade-btn { background: rgba(255,215,0,0.2); border: 1px solid #ffd700; color: #ffd700; padding: 5px 12px; border-radius: 4px; font-size: 12px; cursor: pointer; font-family: inherit; font-weight: bold; }
+  .upgrade-btn:active { transform: scale(0.95); }
+  #pauseBtn { position: absolute; top: 12px; right: 12px; width: 36px; height: 36px; background: rgba(0,0,0,0.7); border: 2px solid #ff8c00; border-radius: 50%; display: none; align-items: center; justify-content: center; z-index: 12; cursor: pointer; box-shadow: 0 0 10px rgba(255,140,0,0.4); }
+  #pauseBtn svg { width: 18px; height: 18px; }
+  .resource-bar { display: flex; gap: 8px; justify-content: center; margin: 8px 0; }
+  .resource { background: rgba(0,0,0,0.7); border: 2px solid #ffd700; border-radius: 20px; padding: 4px 12px; display: flex; align-items: center; gap: 6px; color: #ffd700; font-weight: bold; font-size: 13px; }
+  .resource svg { width: 18px; height: 18px; }
+  #saveIndicator { position: absolute; bottom: 160px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.85); border: 1px solid #00ff88; border-radius: 12px; padding: 4px 12px; color: #00ff88; font-size: 10px; font-weight: bold; z-index: 40; opacity: 0; transition: opacity 0.3s; pointer-events: none; }
+  #saveIndicator.show { opacity: 1; }
+  #nickModal { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.85); z-index: 200; display: none; align-items: center; justify-content: center; padding: 20px; backdrop-filter: blur(4px); }
+  #nickModal.show { display: flex; }
+  .nick-box { width: 100%; max-width: 340px; background: linear-gradient(135deg, #2a1005, #1a0800); border: 2px solid #ff8c00; border-radius: 16px; padding: 20px; box-shadow: 0 0 40px rgba(255, 140, 0, 0.6), inset 0 0 20px rgba(255, 140, 0, 0.1); animation: nickPop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); }
+  @keyframes nickPop { 0% { transform: scale(0.8); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+  .nick-title { color: #ffd700; font-size: 18px; font-weight: bold; letter-spacing: 2px; text-align: center; text-shadow: 0 0 10px #ff8c00; margin-bottom: 6px; display: flex; align-items: center; justify-content: center; gap: 8px; }
+  .nick-title svg { width: 22px; height: 22px; }
+  .nick-sub { color: #888; font-size: 11px; text-align: center; margin-bottom: 16px; }
+  .nick-input { width: 100%; padding: 12px 14px; background: rgba(0, 0, 0, 0.6); border: 2px solid #ff8c00; border-radius: 10px; color: #ffd700; font-family: inherit; font-size: 16px; font-weight: bold; letter-spacing: 2px; text-align: center; text-shadow: 0 0 8px #ff8c00; outline: none; transition: all 0.2s; box-shadow: 0 0 15px rgba(255, 140, 0, 0.3) inset; }
+  .nick-input:focus { border-color: #ffd700; box-shadow: 0 0 25px rgba(255, 215, 0, 0.5), inset 0 0 15px rgba(255, 215, 0, 0.2); }
+  .nick-counter { font-size: 10px; color: #888; text-align: right; margin-top: 4px; margin-bottom: 14px; }
+  .nick-counter.over { color: #ff4040; }
+  .nick-buttons { display: flex; gap: 10px; }
+  .nick-btn { flex: 1; padding: 12px; border-radius: 10px; font-family: inherit; font-size: 13px; font-weight: bold; letter-spacing: 2px; cursor: pointer; transition: all 0.15s; border: 2px solid; }
+  .nick-btn:active { transform: scale(0.96); }
+  .nick-btn.cancel { background: rgba(80, 40, 20, 0.4); border-color: #804020; color: #c08060; }
+  .nick-btn.save { background: linear-gradient(180deg, #ff8c00, #ff4500); border-color: #ffd700; color: #fff; text-shadow: 0 2px 4px rgba(0,0,0,0.5); box-shadow: 0 0 20px rgba(255, 140, 0, 0.6); }
+</style>
+</head>
+<body>
+<div id="game">
+  <canvas id="canvas"></canvas>
+
+  <svg width="0" height="0" style="position:absolute">
+    <defs>
+      <symbol id="skin-default" viewBox="0 0 32 32"><circle cx="16" cy="10" r="5" fill="#00ffff" stroke="#0080ff" stroke-width="1.5"/><path d="M8 30 Q8 18 16 18 Q24 18 24 30 Z" fill="#00ffff" stroke="#0080ff" stroke-width="1.5"/><circle cx="14" cy="10" r="1" fill="#000"/><circle cx="18" cy="10" r="1" fill="#000"/></symbol>
+      <symbol id="skin-ghost" viewBox="0 0 32 32"><path d="M16 4 Q8 4 8 14 L8 28 L11 25 L14 28 L17 25 L20 28 L23 25 L24 28 L24 14 Q24 4 16 4 Z" fill="#c080ff" stroke="#ff00ff" stroke-width="1.5" opacity="0.9"/><circle cx="13" cy="13" r="1.5" fill="#000"/><circle cx="19" cy="13" r="1.5" fill="#000"/></symbol>
+      <symbol id="skin-samurai" viewBox="0 0 32 32"><path d="M6 12 Q16 2 26 12 L28 16 L4 16 Z" fill="#ff0040" stroke="#ffd700" stroke-width="1"/><circle cx="16" cy="12" r="4" fill="#000" stroke="#ffd700" stroke-width="1"/><circle cx="14" cy="12" r="1.5" fill="#ff0040"/><circle cx="18" cy="12" r="1.5" fill="#ff0040"/><path d="M8 30 Q8 20 16 18 Q24 20 24 30 Z" fill="#c00040" stroke="#ffd700" stroke-width="1"/></symbol>
+      <symbol id="skin-knight" viewBox="0 0 32 32"><circle cx="16" cy="10" r="6" fill="#80c0ff" stroke="#0080ff" stroke-width="1.5"/><rect x="10" y="9" width="12" height="2" fill="#000"/><circle cx="13" cy="10" r="1.5" fill="#00ffff"/><circle cx="19" cy="10" r="1.5" fill="#00ffff"/><path d="M6 30 Q6 18 16 18 Q26 18 26 30 Z" fill="#4080ff" stroke="#00ffff" stroke-width="1.5"/></symbol>
+      <symbol id="skin-demon" viewBox="0 0 32 32"><circle cx="16" cy="11" r="6" fill="#ff8040" stroke="#ff0040" stroke-width="1.5"/><path d="M9 6 L6 1 L11 5 Z" fill="#ff0040"/><path d="M23 6 L26 1 L21 5 Z" fill="#ff0040"/><circle cx="13" cy="10" r="1.5" fill="#ffd700"/><circle cx="19" cy="10" r="1.5" fill="#ffd700"/><path d="M7 30 Q7 18 16 18 Q25 18 25 30 Z" fill="#ff4020" stroke="#ffd700" stroke-width="1.5"/></symbol>
+      <symbol id="skin-ice" viewBox="0 0 32 32"><path d="M16 2 L24 10 L22 20 L16 30 L10 20 L8 10 Z" fill="#80e0ff" stroke="#00ffff" stroke-width="1.5"/><circle cx="13" cy="12" r="1.5" fill="#0040a0"/><circle cx="19" cy="12" r="1.5" fill="#0040a0"/></symbol>
+      <symbol id="skin-pumpkin" viewBox="0 0 32 32"><ellipse cx="16" cy="18" rx="11" ry="10" fill="#ff8c00" stroke="#c05000" stroke-width="1.5"/><path d="M11 12 Q10 6 16 6 Q22 6 21 12" fill="none" stroke="#00a000" stroke-width="1.5"/><path d="M11 16 L13 19 L15 16 Z" fill="#000"/><path d="M17 16 L19 19 L21 16 Z" fill="#000"/><path d="M11 22 Q16 26 21 22" fill="none" stroke="#000" stroke-width="1.5"/></symbol>
+      <symbol id="avatar-skull" viewBox="0 0 32 32"><circle cx="16" cy="14" r="9" fill="#e0e0e0" stroke="#606060" stroke-width="1.5"/><circle cx="12" cy="13" r="2.5" fill="#000"/><circle cx="20" cy="13" r="2.5" fill="#000"/><path d="M13 19 L19 19 L18 22 L14 22 Z" fill="#000"/><rect x="13" y="23" width="6" height="4" fill="#e0e0e0" stroke="#606060" stroke-width="1"/></symbol>
+      <symbol id="avatar-robot" viewBox="0 0 32 32"><rect x="7" y="7" width="18" height="16" fill="#c0c0e0" stroke="#8080c0" stroke-width="1.5"/><circle cx="12" cy="14" r="2.5" fill="#ff0040"/><circle cx="20" cy="14" r="2.5" fill="#ff0040"/><rect x="13" y="20" width="6" height="2" fill="#00ffff"/><rect x="14" y="2" width="4" height="5" fill="#a0a0c0" stroke="#8080c0" stroke-width="1"/><circle cx="16" cy="3" r="2" fill="#ffd700"/></symbol>
+      <symbol id="avatar-cat" viewBox="0 0 32 32"><path d="M8 12 L6 4 L12 8 Z" fill="#ff8040" stroke="#c05000" stroke-width="1"/><path d="M24 12 L26 4 L20 8 Z" fill="#ff8040" stroke="#c05000" stroke-width="1"/><circle cx="16" cy="17" r="10" fill="#ff8040" stroke="#c05000" stroke-width="1.5"/><circle cx="12" cy="16" r="2" fill="#000"/><circle cx="20" cy="16" r="2" fill="#000"/><path d="M14 21 Q16 23 18 21" fill="none" stroke="#000" stroke-width="1.5"/></symbol>
+      <symbol id="avatar-star" viewBox="0 0 32 32"><path d="M16 3 L20 12 L29 13 L22 19 L24 28 L16 23 L8 28 L10 19 L3 13 L12 12 Z" fill="#ffd700" stroke="#c08000" stroke-width="1.5"/><circle cx="13" cy="14" r="1.5" fill="#000"/><circle cx="19" cy="14" r="1.5" fill="#000"/><path d="M14 19 Q16 21 18 19" fill="none" stroke="#000" stroke-width="1"/></symbol>
+      <symbol id="avatar-flame" viewBox="0 0 32 32"><path d="M16 2 Q20 10 24 14 Q28 18 26 24 Q24 30 16 30 Q8 30 6 24 Q4 18 8 14 Q12 10 16 2 Z" fill="#ff4020" stroke="#ffd700" stroke-width="1.5"/><circle cx="13" cy="18" r="1.5" fill="#000"/><circle cx="19" cy="18" r="1.5" fill="#000"/><path d="M14 23 Q16 25 18 23" fill="none" stroke="#000" stroke-width="1"/></symbol>
+      <symbol id="avatar-shark" viewBox="0 0 32 32"><ellipse cx="16" cy="16" rx="13" ry="9" fill="#4a90d9" stroke="#0040a0" stroke-width="1.5"/><path d="M4 14 Q8 6 16 6 Q22 6 26 12 Q20 14 16 14 Q10 14 4 14 Z" fill="#4a90d9" stroke="#0040a0" stroke-width="1"/><circle cx="20" cy="15" r="1.5" fill="#000"/><path d="M10 18 L14 20 L10 22 Z" fill="#fff"/></symbol>
+      <symbol id="avatar-skull2" viewBox="0 0 32 32"><circle cx="16" cy="15" r="10" fill="#ffffff" stroke="#606060" stroke-width="1.5"/><circle cx="12" cy="14" r="2.5" fill="#000"/><circle cx="20" cy="14" r="2.5" fill="#000"/><path d="M14 21 L18 21 L17 24 L15 24 Z" fill="#000"/><path d="M10 8 L13 5 M19 5 L22 8" stroke="#000" stroke-width="1.5"/></symbol>
+      <symbol id="avatar-panda" viewBox="0 0 32 32"><circle cx="9" cy="8" r="4" fill="#000"/><circle cx="23" cy="8" r="4" fill="#000"/><circle cx="16" cy="17" r="11" fill="#fff" stroke="#000" stroke-width="1.5"/><circle cx="12" cy="15" r="2.5" fill="#000"/><circle cx="20" cy="15" r="2.5" fill="#000"/><path d="M14 21 Q16 23 18 21" fill="none" stroke="#000" stroke-width="1.5"/></symbol>
+      <symbol id="avatar-crown" viewBox="0 0 32 32"><circle cx="16" cy="18" r="10" fill="#ffd700" stroke="#c08000" stroke-width="1.5"/><path d="M6 12 L8 5 L12 10 L16 3 L20 10 L24 5 L26 12 Z" fill="#ffd700" stroke="#c08000" stroke-width="1"/><circle cx="13" cy="17" r="1.5" fill="#000"/><circle cx="19" cy="17" r="1.5" fill="#000"/><path d="M14 22 Q16 24 18 22" fill="none" stroke="#000" stroke-width="1"/></symbol>
+      <symbol id="enemy-slime" viewBox="0 0 32 32"><ellipse cx="16" cy="20" rx="12" ry="9" fill="#40ff40" stroke="#00a000" stroke-width="1.5"/><circle cx="12" cy="17" r="2" fill="#000"/><circle cx="20" cy="17" r="2" fill="#000"/></symbol>
+      <symbol id="enemy-bat" viewBox="0 0 32 32"><ellipse cx="16" cy="16" rx="5" ry="6" fill="#8040ff"/><path d="M11 14 Q4 10 3 18 Q7 16 11 18 Z" fill="#6020c0"/><path d="M21 14 Q28 10 29 18 Q25 16 21 18 Z" fill="#6020c0"/><circle cx="14" cy="14" r="1.5" fill="#ff0040"/><circle cx="18" cy="14" r="1.5" fill="#ff0040"/></symbol>
+      <symbol id="enemy-skeleton" viewBox="0 0 32 32"><circle cx="16" cy="10" r="6" fill="#e0e0e0" stroke="#808080" stroke-width="1"/><circle cx="13" cy="9" r="1.5" fill="#000"/><circle cx="19" cy="9" r="1.5" fill="#000"/><rect x="14" y="13" width="4" height="2" fill="#000"/><rect x="12" y="17" width="8" height="10" fill="#e0e0e0" stroke="#808080"/></symbol>
+      <symbol id="enemy-robot" viewBox="0 0 32 32"><rect x="8" y="6" width="16" height="14" fill="#c0c0e0" stroke="#8080c0" stroke-width="1.5"/><circle cx="13" cy="12" r="2" fill="#ff0040"/><circle cx="19" cy="12" r="2" fill="#ff0040"/><rect x="12" y="20" width="8" height="8" fill="#a0a0c0" stroke="#8080c0" stroke-width="1.5"/><rect x="14" y="22" width="4" height="3" fill="#00ffff"/></symbol>
+      <symbol id="enemy-golem" viewBox="0 0 32 32"><rect x="7" y="8" width="18" height="16" fill="#806040" stroke="#402010" stroke-width="1.5"/><circle cx="12" cy="15" r="2" fill="#ffd700"/><circle cx="20" cy="15" r="2" fill="#ffd700"/><rect x="11" y="24" width="4" height="6" fill="#604020"/><rect x="17" y="24" width="4" height="6" fill="#604020"/></symbol>
+      <symbol id="enemy-pumpkin" viewBox="0 0 32 32"><ellipse cx="16" cy="18" rx="11" ry="10" fill="#ff8c00" stroke="#c05000" stroke-width="1.5"/><path d="M11 12 Q10 6 16 6 Q22 6 21 12" fill="none" stroke="#00a000" stroke-width="1.5"/><path d="M11 16 L13 19 L15 16 Z" fill="#000"/><path d="M17 16 L19 19 L21 16 Z" fill="#000"/><path d="M11 22 Q16 26 21 22" fill="none" stroke="#000" stroke-width="1.5"/></symbol>
+      <symbol id="enemy-drone" viewBox="0 0 32 32"><ellipse cx="16" cy="16" rx="8" ry="6" fill="#00ddff" stroke="#0080c0" stroke-width="1.5"/><rect x="4" y="12" width="5" height="2" fill="#a0a0c0"/><rect x="23" y="12" width="5" height="2" fill="#a0a0c0"/><circle cx="13" cy="15" r="2" fill="#ff0040"/><circle cx="19" cy="15" r="2" fill="#ff0040"/><rect x="14" y="20" width="4" height="3" fill="#80c0ff"/></symbol>
+      <symbol id="enemy-ice-golem" viewBox="0 0 32 32"><rect x="6" y="7" width="20" height="18" fill="#80e0ff" stroke="#0080c0" stroke-width="1.5"/><circle cx="12" cy="14" r="2.5" fill="#ffffff" stroke="#0040a0" stroke-width="1"/><circle cx="20" cy="14" r="2.5" fill="#ffffff" stroke="#0040a0" stroke-width="1"/><rect x="11" y="23" width="4" height="6" fill="#4080c0"/><rect x="17" y="23" width="4" height="6" fill="#4080c0"/><path d="M10 9 L13 6 M19 6 L22 9" stroke="#ffffff" stroke-width="1.5"/></symbol>
+      <symbol id="enemy-lava" viewBox="0 0 32 32"><ellipse cx="16" cy="20" rx="12" ry="9" fill="#ff4020" stroke="#800000" stroke-width="1.5"/><ellipse cx="16" cy="18" rx="7" ry="4" fill="#ffd700"/><circle cx="12" cy="18" r="2" fill="#000"/><circle cx="20" cy="18" r="2" fill="#000"/><path d="M6 14 Q8 8 10 12 Q12 6 14 12 Q16 5 18 12 Q20 7 22 12 Q24 8 26 14" fill="none" stroke="#ffd700" stroke-width="1.5"/></symbol>
+      <symbol id="enemy-acid-spider" viewBox="0 0 32 32"><circle cx="16" cy="18" r="7" fill="#40ff40" stroke="#00a000" stroke-width="1.5"/><circle cx="13" cy="16" r="2" fill="#000"/><circle cx="19" cy="16" r="2" fill="#000"/><path d="M9 16 L4 12 M9 20 L4 24 M23 16 L28 12 M23 20 L28 24" stroke="#00a000" stroke-width="2"/><path d="M16 11 L16 7 M13 11 L11 8 M19 11 L21 8" stroke="#00a000" stroke-width="1.5"/><circle cx="12" cy="20" r="1.5" fill="#000"/><circle cx="20" cy="20" r="1.5" fill="#000"/></symbol>
+      <symbol id="enemy-shadow" viewBox="0 0 32 32"><ellipse cx="16" cy="16" rx="11" ry="12" fill="#1a0030" stroke="#8000ff" stroke-width="1.5"/><circle cx="12" cy="14" r="2" fill="#ff00ff"/><circle cx="20" cy="14" r="2" fill="#ff00ff"/><ellipse cx="16" cy="16" rx="14" ry="4" fill="none" stroke="#ff00ff" stroke-width="1" opacity="0.5"/></symbol>
+      <symbol id="enemy-ghost-pumpkin" viewBox="0 0 32 32"><ellipse cx="16" cy="18" rx="11" ry="10" fill="#ff8c00" stroke="#c05000" stroke-width="1.5" opacity="0.7"/><path d="M11 12 Q10 6 16 6 Q22 6 21 12" fill="none" stroke="#00a000" stroke-width="1.5"/><circle cx="12" cy="16" r="2" fill="#000"/><circle cx="20" cy="16" r="2" fill="#000"/><ellipse cx="16" cy="23" rx="3" ry="2" fill="#000"/><path d="M6 26 Q10 24 8 30 M26 26 Q22 24 24 30" stroke="#ffd700" stroke-width="1" fill="none"/></symbol>
+      <symbol id="boss-demon" viewBox="0 0 32 32"><ellipse cx="16" cy="16" rx="10" ry="11" fill="#c00040"/><path d="M8 8 L4 2 L10 6 Z" fill="#600020"/><path d="M24 8 L28 2 L22 6 Z" fill="#600020"/><circle cx="12" cy="14" r="2.5" fill="#ffd700"/><circle cx="20" cy="14" r="2.5" fill="#ffd700"/><circle cx="12" cy="14" r="1" fill="#000"/><circle cx="20" cy="14" r="1" fill="#000"/></symbol>
+      <symbol id="boss-cyber" viewBox="0 0 32 32"><rect x="6" y="6" width="20" height="18" fill="#ff00ff" stroke="#800080" stroke-width="2"/><circle cx="11" cy="13" r="2.5" fill="#00ffff"/><circle cx="21" cy="13" r="2.5" fill="#00ffff"/><circle cx="11" cy="13" r="1" fill="#000"/><circle cx="21" cy="13" r="1" fill="#000"/><rect x="10" y="24" width="12" height="4" fill="#800080"/></symbol>
+      <symbol id="boss-pumpkin" viewBox="0 0 32 32"><ellipse cx="16" cy="17" rx="12" ry="11" fill="#ff4500" stroke="#c05000" stroke-width="1.5"/><path d="M10 8 Q9 2 16 2 Q23 2 22 8" fill="none" stroke="#00a000" stroke-width="2"/><path d="M9 14 L12 18 L15 14 Z" fill="#ffd700"/><path d="M17 14 L20 18 L23 14 Z" fill="#ffd700"/><path d="M9 22 Q16 28 23 22" fill="none" stroke="#ffd700" stroke-width="2"/></symbol>
+      <symbol id="world-neon" viewBox="0 0 32 32"><circle cx="16" cy="16" r="12" fill="#00ffff" opacity="0.3" stroke="#00ffff" stroke-width="1.5"/><circle cx="16" cy="16" r="6" fill="#00ffff"/></symbol>
+      <symbol id="world-ice" viewBox="0 0 32 32"><path d="M16 4 L20 12 L28 14 L22 20 L24 28 L16 24 L8 28 L10 20 L4 14 L12 12 Z" fill="#80e0ff" stroke="#00ffff" stroke-width="1.5"/></symbol>
+      <symbol id="world-fire" viewBox="0 0 32 32"><path d="M16 2 Q20 10 24 14 Q28 18 26 24 Q24 30 16 30 Q8 30 6 24 Q4 18 8 14 Q12 10 16 2 Z" fill="#ff4020" stroke="#ffd700" stroke-width="1.5"/></symbol>
+      <symbol id="world-void" viewBox="0 0 32 32"><circle cx="16" cy="16" r="12" fill="#200040" stroke="#8000ff" stroke-width="1.5"/><circle cx="16" cy="16" r="7" fill="#000"/><ellipse cx="16" cy="16" rx="14" ry="4" fill="none" stroke="#ff00ff" stroke-width="1" opacity="0.7"/></symbol>
+      <symbol id="world-toxic" viewBox="0 0 32 32"><circle cx="16" cy="16" r="12" fill="#40ff00" opacity="0.4" stroke="#40ff00" stroke-width="1.5"/><circle cx="12" cy="14" r="2" fill="#80ff40"/><circle cx="20" cy="14" r="2" fill="#80ff40"/><circle cx="16" cy="20" r="2" fill="#80ff40"/></symbol>
+      <symbol id="world-halloween" viewBox="0 0 32 32"><circle cx="16" cy="16" r="12" fill="#1a0a05" stroke="#ff8c00" stroke-width="1.5"/><ellipse cx="16" cy="18" rx="7" ry="6" fill="#ff8c00" stroke="#c05000" stroke-width="1"/><path d="M13 14 L14 16 L15 14 Z" fill="#000"/><path d="M17 14 L18 16 L19 14 Z" fill="#000"/></symbol>
+      <symbol id="icon-hp" viewBox="0 0 32 32"><path d="M16 28 L6 18 Q2 14 6 9 Q10 4 16 10 Q22 4 26 9 Q30 14 26 18 Z" fill="currentColor"/></symbol>
+      <symbol id="icon-xp" viewBox="0 0 32 32"><path d="M16 3 L20 12 L29 13 L22 19 L24 28 L16 23 L8 28 L10 19 L3 13 L12 12 Z" fill="currentColor"/></symbol>
+      <symbol id="icon-coin" viewBox="0 0 32 32"><circle cx="16" cy="16" r="13" fill="#ffd700" stroke="#c08000" stroke-width="2"/><circle cx="16" cy="16" r="9" fill="none" stroke="#c08000" stroke-width="1.5"/><path d="M11 16 L14 19 L21 12" stroke="#c08000" stroke-width="2.5" fill="none" stroke-linecap="round"/></symbol>
+      <symbol id="icon-sword" viewBox="0 0 32 32"><path d="M22 4 L26 8 L12 22 L10 24 L6 26 L8 22 L10 20 Z" fill="#ff4040" stroke="#ff8080" stroke-width="1"/><path d="M22 4 L26 8 L23 11 L19 7 Z" fill="#ff8080"/><rect x="7" y="22" width="6" height="3" transform="rotate(45 10 23.5)" fill="#ffd700"/><circle cx="7" cy="25" r="2" fill="#ffd700"/></symbol>
+      <symbol id="icon-magic" viewBox="0 0 32 32"><path d="M16 4 L19 12 L27 12 L21 17 L23 26 L16 21 L9 26 L11 17 L5 12 L13 12 Z" fill="#ffd700" stroke="#ff8c00" stroke-width="1"/><circle cx="16" cy="16" r="3" fill="#ff00ff"/></symbol>
+      <symbol id="icon-pause" viewBox="0 0 32 32"><rect x="9" y="5" width="5" height="22" fill="#ff8c00"/><rect x="18" y="5" width="5" height="22" fill="#ff8c00"/></symbol>
+      <symbol id="icon-play" viewBox="0 0 32 32"><path d="M10 6 L26 16 L10 26 Z" fill="currentColor"/></symbol>
+      <symbol id="icon-shop" viewBox="0 0 32 32"><path d="M4 10 L6 4 L26 4 L28 10 Z" fill="currentColor"/><rect x="6" y="10" width="20" height="18" fill="currentColor" opacity="0.8"/><rect x="12" y="14" width="8" height="14" fill="#000"/></symbol>
+      <symbol id="icon-world" viewBox="0 0 32 32"><circle cx="16" cy="16" r="12" fill="none" stroke="currentColor" stroke-width="2"/><ellipse cx="16" cy="16" rx="12" ry="5" fill="none" stroke="currentColor" stroke-width="1.5"/><ellipse cx="16" cy="16" rx="5" ry="12" fill="none" stroke="currentColor" stroke-width="1.5"/></symbol>
+      <symbol id="icon-upgrade" viewBox="0 0 32 32"><path d="M16 4 L16 28 M16 4 L8 12 M16 4 L24 12" stroke="currentColor" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="icon-pumpkin" viewBox="0 0 32 32"><ellipse cx="16" cy="18" rx="11" ry="10" fill="#ff8c00" stroke="#c05000" stroke-width="1.5"/><path d="M11 12 Q10 6 16 6 Q22 6 21 12" fill="none" stroke="#00a000" stroke-width="1.5"/><path d="M11 16 L13 19 L15 16 Z" fill="#000"/><path d="M17 16 L19 19 L21 16 Z" fill="#000"/><path d="M11 22 Q16 26 21 22" fill="none" stroke="#000" stroke-width="1.5"/></symbol>
+      <symbol id="icon-pass" viewBox="0 0 32 32"><rect x="4" y="6" width="24" height="20" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="15" r="3" fill="currentColor"/><path d="M7 24 Q12 18 17 24" fill="none" stroke="currentColor" stroke-width="2"/><path d="M20 12 L26 12 M20 16 L26 16 M20 20 L24 20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+      <symbol id="icon-edit" viewBox="0 0 32 32"><path d="M4 28 L6 22 L22 6 L26 10 L10 26 Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M20 8 L24 12" stroke="currentColor" stroke-width="2"/><circle cx="5" cy="27" r="2" fill="currentColor"/></symbol>
+      <symbol id="icon-avatar" viewBox="0 0 32 32"><circle cx="16" cy="12" r="6" fill="none" stroke="currentColor" stroke-width="2"/><path d="M6 28 Q6 18 16 18 Q26 18 26 28" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
+    </defs>
+  </svg>
+
+  <div id="hud" class="hidden">
+    <div class="player-info">
+      <div class="avatar" id="hudAvatar"><svg><use href="#skin-default"/></svg></div>
+      <div class="stats">
+        <div class="name-row"><span id="hudNickname">НЕО-СТРАННИК</span><span id="hudLevel">Ур. 1</span></div>
+        <div class="hp-bar"><div class="hp-fill" id="hpFill" style="width:100%"></div></div>
+        <div class="xp-bar"><div class="xp-fill" id="xpFill" style="width:0%"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <canvas id="minimap" class="hidden"></canvas>
+  <div id="pauseBtn" class="hidden"><svg><use href="#icon-pause"/></svg></div>
+
+  <div id="worldInfo" class="hidden">
+    <div class="world-name"><svg><use href="#world-neon"/></svg><span id="worldName">НЕО-ГОРОД</span></div>
+    <div class="level-info">Волна: <span id="levelNum">1</span></div>
+    <div class="level-info">Врагов: <span id="enemyCount">0</span></div>
+  </div>
+
+  <div id="bossBar">
+    <div class="boss-name"><svg><use href="#boss-demon"/></svg><span id="bossName">ПОВЕЛИТЕЛЬ БЕЗДНЫ</span></div>
+    <div class="boss-hp"><div class="boss-hp-fill" id="bossHpFill" style="width:100%"></div></div>
+  </div>
+
+  <div id="notifications"></div>
+  <div id="saveIndicator">СОХРАНЕНО</div>
+
+  <div id="nickModal">
+    <div class="nick-box">
+      <div class="nick-title"><svg><use href="#icon-edit"/></svg> ВВЕДИ НИК</div>
+      <div class="nick-sub">От 2 до 16 символов</div>
+      <input type="text" class="nick-input" id="nickInput" maxlength="16" placeholder="НЕО-СТРАННИК">
+      <div class="nick-counter" id="nickCounter">0 / 16</div>
+      <div class="nick-buttons">
+        <button class="nick-btn cancel" onclick="closeNickModal()">ОТМЕНА</button>
+        <button class="nick-btn save" onclick="saveNickname()">СОХРАНИТЬ</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="joystick" class="hidden"><div id="stick"></div></div>
+  <div id="actions" class="hidden">
+    <div class="action-btn skill" id="skillBtn"><svg><use href="#icon-magic"/></svg></div>
+    <div class="action-btn attack" id="attackBtn"><svg><use href="#icon-sword"/></svg></div>
+  </div>
+
+  <div class="screen" id="mainMenu">
+    <div class="top-bar">
+      <div class="top-resource"><svg><use href="#icon-coin"/></svg><span id="menuCoins">0</span></div>
+    </div>
+    <div class="hero-row">
+      <div class="hero-avatar" id="menuAvatar"><svg><use href="#skin-default"/></svg></div>
+      <div class="hero-info">
+        <div class="hero-name">НЕО-СТРАННИК</div>
+        <div class="hero-level">УРОВЕНЬ <span id="menuLevel">1</span></div>
+        <div class="hero-xp-bar"><div class="hero-xp-fill" id="levelProgress" style="width:0%"></div></div>
+      </div>
+    </div>
+    <div class="season-banner" onclick="openComboPass()">
+      <div class="season-banner-bg"></div>
+      <div class="season-banner-content">
+        <div class="season-tag">СЕЗОН 1</div>
+        <div class="season-title">ХЭЛЛОУИН</div>
+        <div class="season-sub">COMBO PASS · 30 УРОВНЕЙ</div>
+        <div class="season-badge"><svg><use href="#icon-pumpkin"/></svg></div>
+      </div>
+    </div>
+    <button class="big-play-btn" onclick="openWorlds()"><svg><use href="#icon-play"/></svg> ИГРАТЬ</button>
+    <div class="bottom-tabs">
+      <div class="tab-btn" id="passTabBtn" onclick="openComboPass()"><svg><use href="#icon-pass"/></svg><span>ПРОПУСК</span></div>
+      <div class="tab-btn" onclick="openAvatars()"><svg><use href="#icon-avatar"/></svg><span>ИКОНКИ</span></div>
+      <div class="tab-btn" onclick="changeNickname()"><svg><use href="#icon-edit"/></svg><span>НИК</span></div>
+      <div class="tab-btn" onclick="openShop()"><svg><use href="#icon-shop"/></svg><span>МАГАЗИН</span></div>
+      <div class="tab-btn" onclick="openUpgrades()"><svg><use href="#icon-upgrade"/></svg><span>ПРОКАЧКА</span></div>
+    </div>
+    <div class="menu-footer">Рекорд: волна <span id="menuBest">0</span> · Убийств: <span id="menuKills">0</span></div>
+  </div>
+
+  <div class="screen hidden" id="worldsScreen">
+    <h2><svg style="color:#ff8c00"><use href="#icon-world"/></svg> ВЫБОР МИРА</h2>
+    <div class="world-grid" id="worldsGrid"></div>
+    <button class="btn pink" onclick="showScreen('mainMenu')">НАЗАД</button>
+  </div>
+
+  <div class="screen hidden" id="avatarsScreen">
+    <h2><svg style="color:#ff8c00"><use href="#icon-avatar"/></svg> ИКОНКИ ПРОФИЛЯ</h2>
+    <p style="color:#ff8c00;font-size:11px;">Выбери свою иконку</p>
+    <div class="shop-grid" id="avatarsGrid"></div>
+    <button class="btn pink" onclick="showScreen('mainMenu')">НАЗАД</button>
+  </div>
+
+  <div class="screen hidden" id="shopScreen">
+    <h2><svg style="color:#ff8c00"><use href="#icon-shop"/></svg> МАГАЗИН СКИНОВ</h2>
+    <div class="resource-bar"><div class="resource"><svg><use href="#icon-coin"/></svg><span id="shopCoins">0</span></div></div>
+    <div class="shop-grid" id="shopGrid"></div>
+    <button class="btn pink" onclick="showScreen('mainMenu')">НАЗАД</button>
+  </div>
+
+  <div class="screen hidden" id="comboPassScreen">
+    <h2><svg style="color:#ff8c00"><use href="#icon-pumpkin"/></svg> COMBO PASS</h2>
+    <p style="color:#ff8c00;font-size:11px;letter-spacing:2px;">СЕЗОН 1: ХЭЛЛОУИН</p>
+    <div style="width:100%;max-width:340px;background:linear-gradient(135deg,#2a1005,#1a0800);border:2px solid #ff8c00;border-radius:12px;padding:12px 16px;margin:8px 0;box-shadow:0 0 20px rgba(255,140,0,0.4);">
+      <div style="display:flex;justify-content:space-between;align-items:center;color:#ffd700;font-weight:bold;font-size:14px;margin-bottom:6px;">
+        <span>СЕЗОННЫЙ ПРОПУСК</span><svg style="width:22px;height:22px;"><use href="#icon-pass"/></svg>
+      </div>
+      <div style="font-size:11px;color:#ffd700;margin-bottom:6px;display:flex;justify-content:space-between;">
+        <span>УРОВЕНЬ <span id="comboLevel">1</span> / 30</span>
+        <span><span id="comboXp">0</span> / <span id="comboXpNext">100</span></span>
+      </div>
+      <div style="width:100%;height:8px;background:rgba(0,0,0,0.6);border-radius:4px;overflow:hidden;border:1px solid rgba(255,140,0,0.5);">
+        <div id="comboProgressFill" style="height:100%;width:0%;background:linear-gradient(90deg,#ff8c00,#ff4500);transition:width 0.4s;"></div>
+      </div>
+    </div>
+    <div id="comboRewards" style="display:flex;flex-direction:column;gap:6px;width:100%;max-width:340px;margin:8px 0;"></div>
+    <button class="btn pink" onclick="showScreen('mainMenu')">НАЗАД</button>
+  </div>
+
+  <div class="screen hidden" id="upgradeScreen">
+    <h2><svg style="color:#ffd700"><use href="#icon-upgrade"/></svg> ПРОКАЧКА</h2>
+    <p style="color:#ffd700;font-size:14px;">Свободных очков: <span id="freePoints">0</span></p>
+    <div class="upgrade-item"><div class="label"><svg style="color:#ff0040"><use href="#icon-hp"/></svg> Живучесть <span id="statHpLvl">(1)</span></div><button class="upgrade-btn" onclick="upgradeStat('hp')">+1</button></div>
+    <div class="upgrade-item"><div class="label"><svg style="color:#ff4040"><use href="#icon-sword"/></svg> Урон <span id="statDmgLvl">(1)</span></div><button class="upgrade-btn" onclick="upgradeStat('dmg')">+1</button></div>
+    <div class="upgrade-item"><div class="label"><svg style="color:#00ffff"><use href="#icon-play"/></svg> Скорость <span id="statSpdLvl">(1)</span></div><button class="upgrade-btn" onclick="upgradeStat('spd')">+1</button></div>
+    <div class="upgrade-item"><div class="label"><svg style="color:#ffd700"><use href="#icon-magic"/></svg> Магия <span id="statMagLvl">(1)</span></div><button class="upgrade-btn" onclick="upgradeStat('mag')">+1</button></div>
+    <button class="btn pink" onclick="showScreen('mainMenu')">НАЗАД</button>
+  </div>
+
+  <div class="screen hidden" id="deathScreen">
+    <h1 style="color:#ff4500;-webkit-text-fill-color:#ff4500;">ТЫ ПАЛ</h1>
+    <h2 style="color:#ff8080;">ПОРАЖЕНИЕ</h2>
+    <div class="death-stats">
+      <div class="stat-line"><div class="label"><svg><use href="#icon-world"/></svg> Мир</div><div class="value" id="deathWorld">НЕО-ГОРОД</div></div>
+      <div class="stat-line"><div class="label"><svg><use href="#icon-xp"/></svg> Волна</div><div class="value" id="deathWave">1</div></div>
+      <div class="stat-line"><div class="label"><svg><use href="#icon-sword"/></svg> Убийств</div><div class="value" id="deathKills">0</div></div>
+      <div class="stat-line"><div class="label"><svg><use href="#icon-coin"/></svg> Монет</div><div class="value" id="deathCoins">0</div></div>
+    </div>
+    <button class="btn" onclick="restartGame()"><svg><use href="#icon-play"/></svg> ВОЗРОДИТЬСЯ</button>
+    <button class="btn pink" onclick="toMainMenu()">В МЕНЮ</button>
+  </div>
+
+  <div class="screen hidden" id="pauseScreen">
+    <h2>ПАУЗА</h2>
+    <button class="btn" onclick="resumeGame()"><svg><use href="#icon-play"/></svg> ПРОДОЛЖИТЬ</button>
+    <button class="btn gold" onclick="showStats()"><svg><use href="#icon-upgrade"/></svg> ПРОКАЧКА</button>
+    <button class="btn pink" onclick="quitToMenu()">В МЕНЮ</button>
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+function getSVG(id, size = 24, color = 'currentColor') {
+  return `<svg style="width:${size}px;height:${size}px;color:${color};filter:drop-shadow(0 0 3px ${color})"><use href="#${id}"/></svg>`;
+}
+
+const ENEMY_DATA = {
+  'enemy-slime':        { hp: 30,  dmg: 8,  speed: 1.2, size: 16, xp: 5,  coins: 3,  color: '#40ff40', attackRate: 800,  range: 30 },
+  'enemy-bat':          { hp: 20,  dmg: 12, speed: 2.0, size: 14, xp: 7,  coins: 4,  color: '#8040ff', attackRate: 600,  range: 28 },
+  'enemy-skeleton':     { hp: 50,  dmg: 15, speed: 0.9, size: 18, xp: 12, coins: 6,  color: '#e0e0e0', attackRate: 1000, range: 35 },
+  'enemy-robot':        { hp: 70,  dmg: 18, speed: 1.0, size: 18, xp: 15, coins: 8,  color: '#80c0ff', attackRate: 900,  range: 40 },
+  'enemy-golem':        { hp: 120, dmg: 25, speed: 0.7, size: 22, xp: 25, coins: 12, color: '#806040', attackRate: 1200, range: 45 },
+  'enemy-pumpkin':      { hp: 40,  dmg: 10, speed: 1.3, size: 17, xp: 9,  coins: 5,  color: '#ff8c00', attackRate: 700,  range: 32 },
+  'enemy-drone':        { hp: 35,  dmg: 14, speed: 1.8, size: 15, xp: 10, coins: 6,  color: '#00ddff', attackRate: 900,  range: 180, ranged: true },
+  'enemy-ice-golem':    { hp: 180, dmg: 20, speed: 0.5, size: 24, xp: 30, coins: 15, color: '#80e0ff', attackRate: 1400, range: 50 },
+  'enemy-lava':         { hp: 60,  dmg: 14, speed: 1.1, size: 18, xp: 14, coins: 7,  color: '#ff4020', attackRate: 800,  range: 34, trail: true },
+  'enemy-acid-spider':  { hp: 45,  dmg: 16, speed: 1.5, size: 16, xp: 12, coins: 6,  color: '#40ff40', attackRate: 700,  range: 30, jump: true },
+  'enemy-shadow':       { hp: 55,  dmg: 18, speed: 1.2, size: 18, xp: 16, coins: 9,  color: '#8000ff', attackRate: 900,  range: 35, teleport: true },
+  'enemy-ghost-pumpkin':{ hp: 50,  dmg: 12, speed: 1.4, size: 17, xp: 13, coins: 7,  color: '#ff8c00', attackRate: 800,  range: 32, phase: true },
+};
+
+const ICON_DEFS = {
+  'skin-default': [{ t:'c', cx:16, cy:10, r:5, f:'#00ffff', s:'#0080ff', sw:1.5 },{ t:'p', d:'M8 30 Q8 18 16 18 Q24 18 24 30 Z', f:'#00ffff', s:'#0080ff', sw:1.5 },{ t:'c', cx:14, cy:10, r:1, f:'#000' },{ t:'c', cx:18, cy:10, r:1, f:'#000' }],
+  'skin-ghost': [{ t:'p', d:'M16 4 Q8 4 8 14 L8 28 L11 25 L14 28 L17 25 L20 28 L23 25 L24 28 L24 14 Q24 4 16 4 Z', f:'#c080ff', s:'#ff00ff', sw:1.5 },{ t:'c', cx:13, cy:13, r:1.5, f:'#000' },{ t:'c', cx:19, cy:13, r:1.5, f:'#000' }],
+  'skin-samurai': [{ t:'p', d:'M6 12 Q16 2 26 12 L28 16 L4 16 Z', f:'#ff0040', s:'#ffd700', sw:1 },{ t:'c', cx:16, cy:12, r:4, f:'#000', s:'#ffd700', sw:1 },{ t:'c', cx:14, cy:12, r:1.5, f:'#ff0040' },{ t:'c', cx:18, cy:12, r:1.5, f:'#ff0040' },{ t:'p', d:'M8 30 Q8 20 16 18 Q24 20 24 30 Z', f:'#c00040', s:'#ffd700', sw:1 }],
+  'skin-knight': [{ t:'c', cx:16, cy:10, r:6, f:'#80c0ff', s:'#0080ff', sw:1.5 },{ t:'r', x:10, y:9, w:12, h:2, f:'#000' },{ t:'c', cx:13, cy:10, r:1.5, f:'#00ffff' },{ t:'c', cx:19, cy:10, r:1.5, f:'#00ffff' },{ t:'p', d:'M6 30 Q6 18 16 18 Q26 18 26 30 Z', f:'#4080ff', s:'#00ffff', sw:1.5 }],
+  'skin-demon': [{ t:'c', cx:16, cy:11, r:6, f:'#ff8040', s:'#ff0040', sw:1.5 },{ t:'p', d:'M9 6 L6 1 L11 5 Z', f:'#ff0040' },{ t:'p', d:'M23 6 L26 1 L21 5 Z', f:'#ff0040' },{ t:'c', cx:13, cy:10, r:1.5, f:'#ffd700' },{ t:'c', cx:19, cy:10, r:1.5, f:'#ffd700' },{ t:'p', d:'M7 30 Q7 18 16 18 Q25 18 25 30 Z', f:'#ff4020', s:'#ffd700', sw:1.5 }],
+  'skin-ice': [{ t:'p', d:'M16 2 L24 10 L22 20 L16 30 L10 20 L8 10 Z', f:'#80e0ff', s:'#00ffff', sw:1.5 },{ t:'c', cx:13, cy:12, r:1.5, f:'#0040a0' },{ t:'c', cx:19, cy:12, r:1.5, f:'#0040a0' }],
+  'skin-pumpkin': [{ t:'e', cx:16, cy:18, rx:11, ry:10, f:'#ff8c00', s:'#c05000', sw:1.5 },{ t:'p', d:'M11 16 L13 19 L15 16 Z', f:'#000' },{ t:'p', d:'M17 16 L19 19 L21 16 Z', f:'#000' }],
+  'enemy-slime': [{ t:'e', cx:16, cy:20, rx:12, ry:9, f:'#40ff40', s:'#00a000', sw:1.5 },{ t:'c', cx:12, cy:17, r:2, f:'#000' },{ t:'c', cx:20, cy:17, r:2, f:'#000' }],
+  'enemy-bat': [{ t:'e', cx:16, cy:16, rx:5, ry:6, f:'#8040ff' },{ t:'p', d:'M11 14 Q4 10 3 18 Q7 16 11 18 Z', f:'#6020c0' },{ t:'p', d:'M21 14 Q28 10 29 18 Q25 16 21 18 Z', f:'#6020c0' },{ t:'c', cx:14, cy:14, r:1.5, f:'#ff0040' },{ t:'c', cx:18, cy:14, r:1.5, f:'#ff0040' }],
+  'enemy-skeleton': [{ t:'c', cx:16, cy:10, r:6, f:'#e0e0e0', s:'#808080', sw:1 },{ t:'c', cx:13, cy:9, r:1.5, f:'#000' },{ t:'c', cx:19, cy:9, r:1.5, f:'#000' },{ t:'r', x:14, y:13, w:4, h:2, f:'#000' },{ t:'r', x:12, y:17, w:8, h:10, f:'#e0e0e0', s:'#808080', sw:1 }],
+  'enemy-robot': [{ t:'r', x:8, y:6, w:16, h:14, f:'#c0c0e0', s:'#8080c0', sw:1.5 },{ t:'c', cx:13, cy:12, r:2, f:'#ff0040' },{ t:'c', cx:19, cy:12, r:2, f:'#ff0040' },{ t:'r', x:12, y:20, w:8, h:8, f:'#a0a0c0', s:'#8080c0', sw:1.5 },{ t:'r', x:14, y:22, w:4, h:3, f:'#00ffff' }],
+  'enemy-golem': [{ t:'r', x:7, y:8, w:18, h:16, f:'#806040', s:'#402010', sw:1.5 },{ t:'c', cx:12, cy:15, r:2, f:'#ffd700' },{ t:'c', cx:20, cy:15, r:2, f:'#ffd700' },{ t:'r', x:11, y:24, w:4, h:6, f:'#604020' },{ t:'r', x:17, y:24, w:4, h:6, f:'#604020' }],
+  'enemy-pumpkin': [{ t:'e', cx:16, cy:18, rx:11, ry:10, f:'#ff8c00', s:'#c05000', sw:1.5 },{ t:'p', d:'M11 16 L13 19 L15 16 Z', f:'#000' },{ t:'p', d:'M17 16 L19 19 L21 16 Z', f:'#000' }],
+  'enemy-drone': [{ t:'e', cx:16, cy:16, rx:8, ry:6, f:'#00ddff', s:'#0080c0', sw:1.5 },{ t:'r', x:4, y:12, w:5, h:2, f:'#a0a0c0' },{ t:'r', x:23, y:12, w:5, h:2, f:'#a0a0c0' },{ t:'c', cx:13, cy:15, r:2, f:'#ff0040' },{ t:'c', cx:19, cy:15, r:2, f:'#ff0040' },{ t:'r', x:14, y:20, w:4, h:3, f:'#80c0ff' }],
+  'enemy-ice-golem': [{ t:'r', x:6, y:7, w:20, h:18, f:'#80e0ff', s:'#0080c0', sw:1.5 },{ t:'c', cx:12, cy:14, r:2.5, f:'#ffffff', s:'#0040a0', sw:1 },{ t:'c', cx:20, cy:14, r:2.5, f:'#ffffff', s:'#0040a0', sw:1 },{ t:'r', x:11, y:23, w:4, h:6, f:'#4080c0' },{ t:'r', x:17, y:23, w:4, h:6, f:'#4080c0' }],
+  'enemy-lava': [{ t:'e', cx:16, cy:20, rx:12, ry:9, f:'#ff4020', s:'#800000', sw:1.5 },{ t:'e', cx:16, cy:18, rx:7, ry:4, f:'#ffd700' },{ t:'c', cx:12, cy:18, r:2, f:'#000' },{ t:'c', cx:20, cy:18, r:2, f:'#000' }],
+  'enemy-acid-spider': [{ t:'c', cx:16, cy:18, r:7, f:'#40ff40', s:'#00a000', sw:1.5 },{ t:'c', cx:13, cy:16, r:2, f:'#000' },{ t:'c', cx:19, cy:16, r:2, f:'#000' },{ t:'p', d:'M9 16 L4 12 M9 20 L4 24 M23 16 L28 12 M23 20 L28 24', f:'none', s:'#00a000', sw:2 }],
+  'enemy-shadow': [{ t:'e', cx:16, cy:16, rx:11, ry:12, f:'#1a0030', s:'#8000ff', sw:1.5 },{ t:'c', cx:12, cy:14, r:2, f:'#ff00ff' },{ t:'c', cx:20, cy:14, r:2, f:'#ff00ff' }],
+  'enemy-ghost-pumpkin': [{ t:'e', cx:16, cy:18, rx:11, ry:10, f:'#ff8c00', s:'#c05000', sw:1.5 },{ t:'c', cx:12, cy:16, r:2, f:'#000' },{ t:'c', cx:20, cy:16, r:2, f:'#000' },{ t:'e', cx:16, cy:23, rx:3, ry:2, f:'#000' }],
+  'boss-demon': [{ t:'e', cx:16, cy:16, rx:10, ry:11, f:'#c00040' },{ t:'p', d:'M8 8 L4 2 L10 6 Z', f:'#600020' },{ t:'p', d:'M24 8 L28 2 L22 6 Z', f:'#600020' },{ t:'c', cx:12, cy:14, r:2.5, f:'#ffd700' },{ t:'c', cx:20, cy:14, r:2.5, f:'#ffd700' },{ t:'c', cx:12, cy:14, r:1, f:'#000' },{ t:'c', cx:20, cy:14, r:1, f:'#000' }],
+  'boss-cyber': [{ t:'r', x:6, y:6, w:20, h:18, f:'#ff00ff', s:'#800080', sw:2 },{ t:'c', cx:11, cy:13, r:2.5, f:'#00ffff' },{ t:'c', cx:21, cy:13, r:2.5, f:'#00ffff' },{ t:'c', cx:11, cy:13, r:1, f:'#000' },{ t:'c', cx:21, cy:13, r:1, f:'#000' },{ t:'r', x:10, y:24, w:12, h:4, f:'#800080' }],
+  'boss-pumpkin': [{ t:'e', cx:16, cy:17, rx:12, ry:11, f:'#ff4500', s:'#c05000', sw:1.5 },{ t:'p', d:'M9 14 L12 18 L15 14 Z', f:'#ffd700' },{ t:'p', d:'M17 14 L20 18 L23 14 Z', f:'#ffd700' }],
+};
+
+function drawIcon(c, iconId, x, y, size) {
+  const paths = ICON_DEFS[iconId];
+  if (!paths) { c.save(); c.fillStyle = '#ff4040'; c.beginPath(); c.arc(x, y, size/2, 0, Math.PI*2); c.fill(); c.restore(); return; }
+  c.save();
+  c.translate(x - size/2, y - size/2);
+  const s = size / 32;
+  c.scale(s, s);
+  for (const p of paths) {
+    if (p.t === 'c') { c.beginPath(); c.arc(p.cx, p.cy, p.r, 0, Math.PI*2); c.fillStyle = p.f; c.fill(); if (p.s) { c.strokeStyle = p.s; c.lineWidth = p.sw || 1; c.stroke(); } }
+    else if (p.t === 'e') { c.beginPath(); c.ellipse(p.cx, p.cy, p.rx, p.ry, 0, 0, Math.PI*2); c.fillStyle = p.f; c.fill(); if (p.s) { c.strokeStyle = p.s; c.lineWidth = p.sw || 1; c.stroke(); } }
+    else if (p.t === 'r') { c.fillStyle = p.f; c.fillRect(p.x, p.y, p.w, p.h); if (p.s) { c.strokeStyle = p.s; c.lineWidth = p.sw || 1; c.strokeRect(p.x, p.y, p.w, p.h); } }
+    else if (p.t === 'p') { const path = new Path2D(p.d); if (p.f && p.f !== 'none') { c.fillStyle = p.f; c.fill(path); } if (p.s) { c.strokeStyle = p.s; c.lineWidth = p.sw || 1; c.stroke(path); } }
+  }
+  c.restore();
+}
+
+const SKINS = [
+  { id: 'skin-default', name: 'НЕО-СТРАННИК', price: 0 },
+  { id: 'skin-ghost', name: 'ПРИЗРАК', price: 200 },
+  { id: 'skin-knight', name: 'КОСМО-РЫЦАРЬ', price: 400 },
+  { id: 'skin-ice', name: 'ЛЕДЯНОЙ', price: 500 },
+  { id: 'skin-samurai', name: 'КИБЕР-САМУРАЙ', price: 700 },
+  { id: 'skin-demon', name: 'ОГНЕННЫЙ ДЕМОН', price: 1000 },
+  { id: 'skin-pumpkin', name: 'ТЫКВЕННЫЙ ЛОРД', price: 1200 },
+];
+
+const AVATARS = [
+  { id: 'skin-default', name: 'СТРАННИК', price: 0 },
+  { id: 'avatar-skull', name: 'ЧЕРЕП', price: 100 },
+  { id: 'avatar-robot', name: 'РОБОТ', price: 150 },
+  { id: 'avatar-cat', name: 'КОТ', price: 200 },
+  { id: 'avatar-star', name: 'ЗВЕЗДА', price: 250 },
+  { id: 'avatar-flame', name: 'ОГОНЬ', price: 300 },
+  { id: 'avatar-shark', name: 'АКУЛА', price: 400 },
+  { id: 'avatar-skull2', name: 'КОСТЬ', price: 500 },
+  { id: 'avatar-panda', name: 'ПАНДА', price: 600 },
+  { id: 'avatar-crown', name: 'КОРОНА', price: 800 },
+];
+
+const WORLDS = [
+  { id: 'neon', name: 'НЕО-ГОРОД', icon: 'world-neon', color: '#00ffff', desc: 'Неоновые улицы киберпанка', enemies: ['enemy-slime', 'enemy-bat', 'enemy-skeleton', 'enemy-robot', 'enemy-drone'], boss: 'boss-cyber', bossName: 'КИБЕР-СТРАЖ', bgColors: ['#050510', '#0a0520'], gridColor: 'rgba(0, 255, 255, 0.08)' },
+  { id: 'ice', name: 'ЛЕДЯНЫЕ ПУСТОШИ', icon: 'world-ice', color: '#80e0ff', desc: 'Замёрзшие земли севера', enemies: ['enemy-slime', 'enemy-skeleton', 'enemy-golem', 'enemy-bat', 'enemy-ice-golem'], boss: 'boss-demon', bossName: 'ЛЕДЯНОЙ ТИТАН', bgColors: ['#000a15', '#001428'], gridColor: 'rgba(128, 224, 255, 0.1)' },
+  { id: 'fire', name: 'ОГНЕННЫЕ ЗЕМЛИ', icon: 'world-fire', color: '#ff4020', desc: 'Пылающие вулканические поля', enemies: ['enemy-bat', 'enemy-robot', 'enemy-golem', 'enemy-skeleton', 'enemy-lava'], boss: 'boss-demon', bossName: 'ИНФЕРНО', bgColors: ['#150000', '#2a0500'], gridColor: 'rgba(255, 100, 0, 0.1)' },
+  { id: 'toxic', name: 'ТОКСИЧНЫЕ ДЖУНГЛИ', icon: 'world-toxic', color: '#40ff00', desc: 'Заражённые пустоши', enemies: ['enemy-slime', 'enemy-bat', 'enemy-golem', 'enemy-acid-spider'], boss: 'boss-cyber', bossName: 'ТОКСИЧНЫЙ ПОВЕЛИТЕЛЬ', bgColors: ['#051005', '#0a2005'], gridColor: 'rgba(64, 255, 0, 0.1)', smoke: true },
+  { id: 'void', name: 'ПУСТОТА', icon: 'world-void', color: '#8000ff', desc: 'Межпространственное измерение', enemies: ['enemy-skeleton', 'enemy-robot', 'enemy-bat', 'enemy-golem', 'enemy-shadow'], boss: 'boss-cyber', bossName: 'ВЛАДЫКА БЕЗДНЫ', bgColors: ['#08000a', '#150020'], gridColor: 'rgba(160, 0, 255, 0.1)' },
+  { id: 'halloween', name: 'ХЭЛЛОУИН', icon: 'world-halloween', color: '#ff8c00', desc: 'Проклятая тыквенная долина', enemies: ['enemy-pumpkin', 'enemy-bat', 'enemy-skeleton', 'enemy-ghost-pumpkin'], boss: 'boss-pumpkin', bossName: 'КОРОЛЬ ТЫКВ', bgColors: ['#0a0500', '#1a0a05'], gridColor: 'rgba(255, 140, 0, 0.1)' },
+];
+
+const COMBO_PASS_MAX_LEVEL = 30;
+const COMBO_XP_PER_LEVEL = 100;
+const COMBO_REWARDS = [
+  { level: 1,  type: 'coins',  amount: 100,  name: '100 МОНЕТ',       icon: 'icon-coin' },
+  { level: 2,  type: 'points', amount: 1,    name: '1 ОЧКО ПРОКАЧКИ', icon: 'icon-upgrade' },
+  { level: 3,  type: 'coins',  amount: 150,  name: '150 МОНЕТ',       icon: 'icon-coin' },
+  { level: 4,  type: 'skin',   skin: 'skin-ghost',   name: 'СКИН: ПРИЗРАК',    icon: 'skin-ghost' },
+  { level: 5,  type: 'coins',  amount: 200,  name: '200 МОНЕТ',       icon: 'icon-coin' },
+  { level: 6,  type: 'coins',  amount: 150,  name: '150 МОНЕТ',       icon: 'icon-coin' },
+  { level: 7,  type: 'points', amount: 2,    name: '2 ОЧКА ПРОКАЧКИ', icon: 'icon-upgrade' },
+  { level: 8,  type: 'coins',  amount: 250,  name: '250 МОНЕТ',       icon: 'icon-coin' },
+  { level: 9,  type: 'coins',  amount: 200,  name: '200 МОНЕТ',       icon: 'icon-coin' },
+  { level: 10, type: 'skin',   skin: 'skin-pumpkin', name: 'СКИН: ТЫКВЕННЫЙ ЛОРД', icon: 'skin-pumpkin' },
+  { level: 11, type: 'coins',  amount: 300,  name: '300 МОНЕТ',       icon: 'icon-coin' },
+  { level: 12, type: 'points', amount: 2,    name: '2 ОЧКА ПРОКАЧКИ', icon: 'icon-upgrade' },
+  { level: 13, type: 'coins',  amount: 250,  name: '250 МОНЕТ',       icon: 'icon-coin' },
+  { level: 14, type: 'coins',  amount: 350,  name: '350 МОНЕТ',       icon: 'icon-coin' },
+  { level: 15, type: 'points', amount: 3,    name: '3 ОЧКА ПРОКАЧКИ', icon: 'icon-upgrade' },
+  { level: 16, type: 'coins',  amount: 400,  name: '400 МОНЕТ',       icon: 'icon-coin' },
+  { level: 17, type: 'coins',  amount: 300,  name: '300 МОНЕТ',       icon: 'icon-coin' },
+  { level: 18, type: 'points', amount: 3,    name: '3 ОЧКА ПРОКАЧКИ', icon: 'icon-upgrade' },
+  { level: 19, type: 'coins',  amount: 450,  name: '450 МОНЕТ',       icon: 'icon-coin' },
+  { level: 20, type: 'skin',   skin: 'skin-samurai', name: 'СКИН: КИБЕР-САМУРАЙ', icon: 'skin-samurai' },
+  { level: 21, type: 'coins',  amount: 500,  name: '500 МОНЕТ',       icon: 'icon-coin' },
+  { level: 22, type: 'coins',  amount: 350,  name: '350 МОНЕТ',       icon: 'icon-coin' },
+  { level: 23, type: 'points', amount: 4,    name: '4 ОЧКА ПРОКАЧКИ', icon: 'icon-upgrade' },
+  { level: 24, type: 'coins',  amount: 600,  name: '600 МОНЕТ',       icon: 'icon-coin' },
+  { level: 25, type: 'coins',  amount: 400,  name: '400 МОНЕТ',       icon: 'icon-coin' },
+  { level: 26, type: 'points', amount: 5,    name: '5 ОЧКОВ ПРОКАЧКИ', icon: 'icon-upgrade' },
+  { level: 27, type: 'coins',  amount: 700,  name: '700 МОНЕТ',       icon: 'icon-coin' },
+  { level: 28, type: 'coins',  amount: 500,  name: '500 МОНЕТ',       icon: 'icon-coin' },
+  { level: 29, type: 'points', amount: 6,    name: '6 ОЧКОВ ПРОКАЧКИ', icon: 'icon-upgrade' },
+  { level: 30, type: 'skin',   skin: 'skin-demon',   name: 'СКИН: ОГНЕННЫЙ ДЕМОН', icon: 'skin-demon' },
+];
+
+const SAVE_KEY = 'neonworlds_save_v12';
+const DEFAULT_SAVE = {
+  nickname: 'НЕО-СТРАННИК',
+  avatar: 'skin-default',
+  coins: 500, xp: 0, level: 1, kills: 0, bestWave: 0,
+  ownedSkins: ['skin-default'], equippedSkin: 'skin-default',
+  ownedAvatars: ['skin-default'],
+  upgrades: { hp: 1, dmg: 1, spd: 1, mag: 1 },
+  freePoints: 5, worldRecords: {}, lastPlayed: 0,
+  totalCoinsEarned: 0, totalXpEarned: 0,
+  comboLevel: 1, comboXp: 0, comboClaimed: [],
+};
+let save = JSON.parse(JSON.stringify(DEFAULT_SAVE));
+
+function loadSave() {
+  try {
+    const raw = localStorage.getItem(SAVE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      save = { ...DEFAULT_SAVE, ...parsed };
+      save.upgrades = { ...DEFAULT_SAVE.upgrades, ...(parsed.upgrades || {}) };
+      save.worldRecords = parsed.worldRecords || {};
+      save.ownedSkins = Array.isArray(parsed.ownedSkins) ? parsed.ownedSkins : ['skin-default'];
+      save.ownedAvatars = Array.isArray(parsed.ownedAvatars) ? parsed.ownedAvatars : ['skin-default'];
+      save.comboClaimed = Array.isArray(parsed.comboClaimed) ? parsed.comboClaimed : [];
+      return true;
+    }
+  } catch (e) { console.error(e); }
+  return false;
+}
+function persistSave(showIndicator = false) {
+  try { save.lastPlayed = Date.now(); localStorage.setItem(SAVE_KEY, JSON.stringify(save)); if (showIndicator) showSaveIndicator(); } catch (e) { console.error(e); }
+}
+function showSaveIndicator() { const i = $('saveIndicator'); if (!i) return; i.classList.add('show'); clearTimeout(i._timer); i._timer = setTimeout(() => i.classList.remove('show'), 1500); }
+
+let autoSaveInterval = null;
+function startAutoSave() {
+  if (autoSaveInterval) clearInterval(autoSaveInterval);
+  autoSaveInterval = setInterval(() => {
+    if (state.running && !state.paused) {
+      save.coins += state.coinsEarned - (state._lastSavedCoins || 0);
+      save.xp += state.xpEarned - (state._lastSavedXp || 0);
+      save.kills += state.kills - (state._lastSavedKills || 0);
+      if (state.waves > save.bestWave) save.bestWave = state.waves;
+      state._lastSavedCoins = state.coinsEarned;
+      state._lastSavedXp = state.xpEarned;
+      state._lastSavedKills = state.kills;
+      persistSave();
+    }
+  }, 10000);
+}
+
+const canvas = $('canvas');
+const ctx = canvas.getContext('2d');
+const minimap = $('minimap');
+const mctx = minimap.getContext('2d');
+let W, H;
+function resize() {
+  const rect = canvas.getBoundingClientRect();
+  W = canvas.width = rect.width;
+  H = canvas.height = rect.height;
+  if (minimap) { const mr = minimap.getBoundingClientRect(); minimap.width = mr.width || 90; minimap.height = mr.height || 90; }
+}
+window.addEventListener('resize', resize);
+resize();
+
+const WORLD_SIZE = 3000;
+const state = {
+  running: false, paused: false, frame: 0, kills: 0, waves: 0, waveTimer: 0,
+  currentWorld: WORLDS[0],
+  player: { x: WORLD_SIZE/2, y: WORLD_SIZE/2, vx: 0, vy: 0, speed: 3.2, hp: 100, maxHp: 100, xp: 0, xpNext: 20, size: 16, attackCooldown: 0, attackRate: 400, skillCooldown: 0, skillRate: 5000, facing: { x: 0, y: 1 }, invulnTimer: 0, damageTimer: 0, skin: 'skin-default', level: 1 },
+  enemies: [], projectiles: [], particles: [], damageTexts: [], smokes: [], boss: null,
+  camera: { x: 0, y: 0 },
+  joystick: { active: false, dx: 0, dy: 0, touchId: null },
+  coinsEarned: 0, xpEarned: 0,
+  _lastSavedCoins: 0, _lastSavedXp: 0, _lastSavedKills: 0,
+};
+
+const joystickEl = $('joystick');
+const stickEl = $('stick');
+let joyTouchId = null;
+function joyRect() { return joystickEl.getBoundingClientRect(); }
+function startJoystick(e) { e.preventDefault(); const t = e.touches ? e.touches[0] : e; joyTouchId = t.identifier !== undefined ? t.identifier : 'mouse'; state.joystick.active = true; updateJoystick(t.clientX, t.clientY); }
+function moveJoystick(e) {
+  if (!state.joystick.active) return;
+  let t = null;
+  if (e.touches) { for (let tt of e.touches) { const id = tt.identifier !== undefined ? tt.identifier : 'mouse'; if (id === joyTouchId) { t = tt; break; } } if (!t) t = e.touches[0]; } else t = e;
+  if (t) { e.preventDefault(); updateJoystick(t.clientX, t.clientY); }
+}
+function updateJoystick(cx, cy) {
+  const rect = joyRect();
+  const rx = rect.left + rect.width/2, ry = rect.top + rect.height/2;
+  let dx = cx - rx, dy = cy - ry;
+  const maxR = rect.width/2 - 15;
+  const dist = Math.hypot(dx, dy);
+  if (dist > maxR) { dx = dx/dist*maxR; dy = dy/dist*maxR; }
+  state.joystick.dx = dx/maxR; state.joystick.dy = dy/maxR;
+  stickEl.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+}
+function endJoystick(e) {
+  if (e && e.touches) { for (let t of e.touches) { const id = t.identifier !== undefined ? t.identifier : 'mouse'; if (id === joyTouchId) return; } }
+  state.joystick.active = false; state.joystick.dx = 0; state.joystick.dy = 0; joyTouchId = null;
+  stickEl.style.transform = 'translate(-50%, -50%)';
+}
+joystickEl.addEventListener('touchstart', startJoystick, { passive: false });
+document.addEventListener('touchmove', moveJoystick, { passive: false });
+document.addEventListener('touchend', endJoystick);
+document.addEventListener('touchcancel', endJoystick);
+joystickEl.addEventListener('mousedown', startJoystick);
+document.addEventListener('mousemove', moveJoystick);
+document.addEventListener('mouseup', endJoystick);
+
+$('attackBtn').addEventListener('touchstart', e => { e.preventDefault(); manualAttack(); });
+$('attackBtn').addEventListener('mousedown', e => { e.preventDefault(); manualAttack(); });
+$('skillBtn').addEventListener('touchstart', e => { e.preventDefault(); useSkill(); });
+$('skillBtn').addEventListener('mousedown', e => { e.preventDefault(); useSkill(); });
+$('pauseBtn').addEventListener('click', () => pauseGame());
+window.addEventListener('keydown', e => {
+  if (e.key === ' ' || e.key === 'Space') { e.preventDefault(); manualAttack(); }
+  if (e.key === 'e' || e.key === 'E' || e.key === 'у' || e.key === 'У') { e.preventDefault(); useSkill(); }
+  if (e.key === 'Escape') pauseGame();
+});
+
+function showScreen(id) { document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden')); if (id) $(id).classList.remove('hidden'); }
+function setHUDVisible(v) { ['hud','minimap','pauseBtn','worldInfo','joystick','actions'].forEach(id => $(id).classList.toggle('hidden', !v)); }
+
+function changeNickname() {
+  const modal = $('nickModal');
+  const input = $('nickInput');
+  if (!modal || !input) return;
+  input.value = save.nickname || 'НЕО-СТРАННИК';
+  updateNickCounter();
+  modal.classList.add('show');
+  setTimeout(() => input.focus(), 100);
+}
+function closeNickModal() { const m = $('nickModal'); if (m) m.classList.remove('show'); }
+function updateNickCounter() {
+  const input = $('nickInput'), counter = $('nickCounter');
+  if (!input || !counter) return;
+  const len = input.value.length;
+  counter.textContent = len + ' / 16';
+  counter.classList.toggle('over', len > 16);
+}
+function saveNickname() {
+  const input = $('nickInput');
+  if (!input) return;
+  const trimmed = input.value.trim().slice(0, 16);
+  if (trimmed.length < 2) { showNotification('Ник должен быть от 2 до 16 символов'); return; }
+  save.nickname = trimmed;
+  persistSave(true);
+  refreshMenu();
+  updateHUDAvatar();
+  closeNickModal();
+  showNotification('Ник изменён: ' + trimmed);
+}
+
+function refreshMenu() {
+  $('menuCoins').textContent = save.coins;
+  $('menuLevel').textContent = save.level;
+  $('menuBest').textContent = save.bestWave;
+  $('menuKills').textContent = save.kills;
+  if ($('menuAvatar')) $('menuAvatar').innerHTML = `<svg><use href="#${save.avatar || save.equippedSkin}"/></svg>`;
+  const heroNameEl = document.querySelector('.hero-name');
+  if (heroNameEl) heroNameEl.textContent = save.nickname || 'НЕО-СТРАННИК';
+  const need = xpForLevel(save.level);
+  $('levelProgress').style.width = Math.min(100, (save.xp/need)*100) + '%';
+  updatePassTabGlow();
+}
+function xpForLevel(lvl) { return Math.floor(50 * Math.pow(1.35, lvl-1)); }
+
+function openAvatars() { renderAvatars(); showScreen('avatarsScreen'); }
+function renderAvatars() {
+  const g = $('avatarsGrid'); g.innerHTML = '';
+  AVATARS.forEach(av => {
+    const owned = save.ownedAvatars.includes(av.id);
+    const eq = save.avatar === av.id;
+    const c = document.createElement('div');
+    c.className = 'skin-card' + (owned ? ' owned' : '') + (eq ? ' equipped' : '');
+    c.innerHTML = `<div class="skin-preview">${getSVG(av.id, 36, '#ff8c00')}</div><div class="skin-name">${av.name}</div>` +
+      (owned ? `<div class="skin-price" style="color:${eq?'#ffd700':'#00ff88'}">${eq?'ВЫБРАНА':'ВЫБРАТЬ'}</div>` : `<div class="skin-price">${getSVG('icon-coin',10,'#ffd700')} ${av.price}</div>`);
+    c.onclick = () => handleAvatarClick(av);
+    g.appendChild(c);
+  });
+}
+function handleAvatarClick(av) {
+  if (save.ownedAvatars.includes(av.id)) {
+    save.avatar = av.id;
+    updateHUDAvatar(); refreshMenu();
+    showNotification('Иконка выбрана: ' + av.name);
+    persistSave(true); renderAvatars();
+  } else if (save.coins >= av.price) {
+    save.coins -= av.price;
+    save.ownedAvatars.push(av.id);
+    save.avatar = av.id;
+    showNotification('Куплена иконка: ' + av.name);
+    persistSave(true); renderAvatars(); refreshMenu();
+  } else showNotification('Не хватает монет!');
+}
+
+function openShop() { $('shopCoins').textContent = save.coins; renderShop(); showScreen('shopScreen'); }
+function renderShop() {
+  const g = $('shopGrid'); g.innerHTML = '';
+  SKINS.forEach(skin => {
+    const owned = save.ownedSkins.includes(skin.id);
+    const eq = save.equippedSkin === skin.id;
+    const c = document.createElement('div');
+    c.className = 'skin-card' + (owned ? ' owned' : '') + (eq ? ' equipped' : '');
+    c.innerHTML = `<div class="skin-preview">${getSVG(skin.id, 36, '#ff8c00')}</div><div class="skin-name">${skin.name}</div>` +
+      (owned ? `<div class="skin-price" style="color:${eq?'#ffd700':'#00ff88'}">${eq?'НАДЕТ':'ВЫБРАТЬ'}</div>` : `<div class="skin-price">${getSVG('icon-coin',10,'#ffd700')} ${skin.price}</div>`);
+    c.onclick = () => handleSkinClick(skin);
+    g.appendChild(c);
+  });
+}
+function handleSkinClick(skin) {
+  if (save.ownedSkins.includes(skin.id)) { save.equippedSkin = skin.id; state.player.skin = skin.id; updateHUDAvatar(); refreshMenu(); showNotification('Скин надет: ' + skin.name); persistSave(true); renderShop(); }
+  else if (save.coins >= skin.price) { save.coins -= skin.price; save.ownedSkins.push(skin.id); save.equippedSkin = skin.id; showNotification('Куплен: ' + skin.name); persistSave(true); renderShop(); refreshMenu(); }
+  else showNotification('Не хватает монет!');
+}
+
+function openUpgrades() { refreshUpgradeScreen(); showScreen('upgradeScreen'); }
+function refreshUpgradeScreen() {
+  $('freePoints').textContent = save.freePoints;
+  $('statHpLvl').textContent = `(${save.upgrades.hp})`;
+  $('statDmgLvl').textContent = `(${save.upgrades.dmg})`;
+  $('statSpdLvl').textContent = `(${save.upgrades.spd})`;
+  $('statMagLvl').textContent = `(${save.upgrades.mag})`;
+}
+function upgradeStat(s) {
+  if (save.freePoints <= 0) { showNotification('Нет свободных очков!'); return; }
+  save.freePoints--; save.upgrades[s]++;
+  persistSave(true); refreshUpgradeScreen(); refreshMenu();
+  showNotification('+1 к ' + s.toUpperCase());
+}
+
+function openWorlds() { renderWorlds(); showScreen('worldsScreen'); }
+function renderWorlds() {
+  const g = $('worldsGrid'); g.innerHTML = '';
+  WORLDS.forEach(w => {
+    const rec = save.worldRecords[w.id] || 0;
+    const c = document.createElement('div');
+    c.className = 'world-card';
+    c.innerHTML = `<div class="world-icon-wrap" style="border-color:${w.color};color:${w.color};">${getSVG(w.icon, 32, w.color)}</div>
+      <div class="world-info"><div class="world-title" style="color:${w.color};">${w.name}</div><div class="world-desc">${w.desc}</div><div class="world-record">Рекорд: волна ${rec}</div></div>`;
+    c.onclick = () => startGame(w);
+    g.appendChild(c);
+  });
+}
+
+function comboXpForLevel(l) { return COMBO_XP_PER_LEVEL + (l-1)*20; }
+function openComboPass() { refreshComboPass(); showScreen('comboPassScreen'); }
+function refreshComboPass() {
+  if (!$('comboLevel')) return;
+  $('comboLevel').textContent = save.comboLevel;
+  $('comboXp').textContent = save.comboXp;
+  const need = comboXpForLevel(save.comboLevel);
+  $('comboXpNext').textContent = need;
+  $('comboProgressFill').style.width = Math.min(100, (save.comboXp/need)*100) + '%';
+  renderComboRewards();
+  updatePassTabGlow();
+}
+function renderComboRewards() {
+  const c = $('comboRewards'); if (!c) return; c.innerHTML = '';
+  COMBO_REWARDS.forEach(r => {
+    const claimed = save.comboClaimed.includes(r.level);
+    const canClaim = save.comboLevel >= r.level && !claimed;
+    const div = document.createElement('div');
+    div.style.cssText = `display:flex;align-items:center;gap:10px;background:rgba(255,140,0,0.08);border:1px solid ${canClaim?'#ffd700':'rgba(255,140,0,0.4)'};border-radius:8px;padding:8px 12px;${claimed?'opacity:0.45;':''}`;
+    let actionHtml = '';
+    if (claimed) actionHtml = `<span style="color:#00ff88;font-size:11px;font-weight:bold;">ПОЛУЧЕНО</span>`;
+    else if (canClaim) actionHtml = `<button class="combo-reward-claim" data-level="${r.level}" style="padding:6px 14px;background:linear-gradient(180deg,#ffd700,#ff8c00);color:#000;border:none;border-radius:6px;font-weight:bold;font-size:11px;">ЗАБРАТЬ</button>`;
+    else actionHtml = `<span style="color:#888;font-size:11px;">УР. ${r.level}</span>`;
+    div.innerHTML = `<div style="width:40px;height:40px;flex-shrink:0;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid #ff8c00;background:radial-gradient(circle,rgba(255,140,0,0.3),transparent);">${getSVG(r.icon,26,'#ffd700')}</div><div style="flex:1;"><div style="font-size:10px;color:#ff8c00;font-weight:bold;">УРОВЕНЬ ${r.level}</div><div style="font-size:12px;color:#ffd700;font-weight:bold;">${r.name}</div></div>${actionHtml}`;
+    c.appendChild(div);
+  });
+  c.querySelectorAll('.combo-reward-claim').forEach(btn => btn.addEventListener('click', () => claimComboReward(parseInt(btn.dataset.level))));
+}
+function claimComboReward(l) {
+  const r = COMBO_REWARDS.find(x => x.level === l);
+  if (!r || save.comboClaimed.includes(l) || save.comboLevel < l) return;
+  save.comboClaimed.push(l);
+  if (r.type === 'coins') save.coins += r.amount;
+  else if (r.type === 'points') save.freePoints += r.amount;
+  else if (r.type === 'skin') { if (!save.ownedSkins.includes(r.skin)) save.ownedSkins.push(r.skin); save.equippedSkin = r.skin; }
+  showNotification('Получено: ' + r.name);
+  persistSave(true); refreshComboPass(); refreshMenu(); refreshUpgradeScreen();
+  updatePassTabGlow();
+}
+function addComboXp(amount) {
+  if (save.comboLevel >= COMBO_PASS_MAX_LEVEL) return;
+  save.comboXp += amount;
+  while (save.comboLevel < COMBO_PASS_MAX_LEVEL) {
+    const need = comboXpForLevel(save.comboLevel);
+    if (save.comboXp >= need) { save.comboXp -= need; save.comboLevel++; showNotification('COMBO PASS: УРОВЕНЬ ' + save.comboLevel); }
+    else break;
+  }
+  updatePassTabGlow();
+}
+function hasUnclaimedRewards() {
+  return COMBO_REWARDS.some(r => save.comboLevel >= r.level && !save.comboClaimed.includes(r.level));
+}
+function updatePassTabGlow() {
+  const btn = $('passTabBtn');
+  if (!btn) return;
+  btn.classList.toggle('has-reward', hasUnclaimedRewards());
+}
+
+function startGame(world) {
+  showScreen(null); setHUDVisible(true); refreshMenu();
+  state.running = true; state.paused = false;
+  state.kills = 0; state.waves = 0; state.waveTimer = 5000;
+  state.currentWorld = world;
+  state.enemies = []; state.projectiles = []; state.particles = []; state.damageTexts = []; state.smokes = [];
+  state.boss = null; state.coinsEarned = 0; state.xpEarned = 0;
+  state._lastSavedCoins = 0; state._lastSavedXp = 0; state._lastSavedKills = 0;
+
+  const p = state.player;
+  p.x = WORLD_SIZE/2; p.y = WORLD_SIZE/2; p.vx = 0; p.vy = 0;
+  p.level = save.level;
+  p.hp = 100 + (save.upgrades.hp - 1) * 20;
+  p.maxHp = p.hp;
+  p.speed = 3.2 + (save.upgrades.spd - 1) * 0.3;
+  p.xp = 0; p.xpNext = 20; p.attackCooldown = 0; p.skillCooldown = 0; p.invulnTimer = 0;
+  p.skin = save.equippedSkin;
+
+  state.camera.x = p.x - W/2;
+  state.camera.y = p.y - H/2;
+
+  updateHUDAvatar();
+  $('worldName').textContent = world.name;
+  $('worldName').previousElementSibling.querySelector('use').setAttribute('href', '#' + world.icon);
+  $('levelNum').textContent = '1';
+  updateUI();
+
+  for (let i = 0; i < 100; i++) {
+    state.particles.push({ x: Math.random()*WORLD_SIZE, y: Math.random()*WORLD_SIZE, vx: (Math.random()-0.5)*0.3, vy: (Math.random()-0.5)*0.3, size: 1+Math.random()*2, color: world.color, life: Infinity, ambient: true, alpha: 0.2+Math.random()*0.3 });
+  }
+
+  if (world.smoke) {
+    for (let i = 0; i < 18; i++) {
+      state.smokes.push({
+        x: 300 + Math.random() * (WORLD_SIZE - 600),
+        y: 300 + Math.random() * (WORLD_SIZE - 600),
+        radius: 90 + Math.random() * 60,
+        angle: Math.random() * Math.PI * 2,
+        pulse: Math.random() * Math.PI * 2,
+      });
+    }
+  }
+
+  spawnWave();
+  showNotification('Мир: ' + world.name);
+  startAutoSave();
+}
+
+function updateHUDAvatar() {
+  const id = save.avatar || save.equippedSkin;
+  $('hudAvatar').innerHTML = `<svg><use href="#${id}"/></svg>`;
+  if ($('hudNickname')) $('hudNickname').textContent = save.nickname || 'НЕО-СТРАННИК';
+}
+
+function spawnWave() {
+  state.waves++;
+  $('levelNum').textContent = state.waves;
+  if (state.waves > save.bestWave) {
+    save.bestWave = state.waves;
+    if ($('menuBest')) $('menuBest').textContent = save.bestWave;
+  }
+  const w = state.currentWorld;
+  const levelScale = 1 + (state.waves-1)*0.15 + save.level*0.05;
+  const count = Math.min(6 + (state.waves-1)*2 + Math.floor(save.level*0.5), 50);
+  for (let i = 0; i < count; i++) {
+    const icon = w.enemies[Math.floor(Math.random()*w.enemies.length)];
+    const type = ENEMY_DATA[icon] || ENEMY_DATA['enemy-slime'];
+    let x, y, d, tries = 0;
+    do {
+      x = 200 + Math.random()*(WORLD_SIZE-400);
+      y = 200 + Math.random()*(WORLD_SIZE-400);
+      d = Math.hypot(x-state.player.x, y-state.player.y);
+      tries++;
+    } while (d < 350 && tries < 50);
+    state.enemies.push({
+      x, y, vx: 0, vy: 0, icon,
+      hp: type.hp*levelScale, maxHp: type.hp*levelScale,
+      damage: type.dmg*levelScale,
+      speed: type.speed, size: type.size,
+      xp: type.xp, coins: type.coins, color: type.color,
+      attackRate: type.attackRate, attackTimer: 0,
+      range: type.range, hitTimer: 0, isBoss: false,
+      ranged: !!type.ranged, trail: !!type.trail, jump: !!type.jump,
+      teleport: !!type.teleport, phase: !!type.phase,
+      shootTimer: type.ranged ? 1500 : 0,
+      jumpTimer: type.jump ? 2000 : 0,
+      teleportTimer: type.teleport ? 3000 : 0,
+      phaseTimer: type.phase ? 2500 : 0,
+      phaseVisible: true,
+    });
+  }
+  if (state.waves % 5 === 0) setTimeout(spawnBoss, 2000);
+  state.waveTimer = 25000;
+  showNotification('Волна ' + state.waves + ' · Врагов: ' + count);
+  addComboXp(10);
+}
+
+function spawnBoss() {
+  const w = state.currentWorld;
+  const levelScale = 1 + (state.waves-1)*0.2 + save.level*0.1;
+  const angle = Math.random()*Math.PI*2;
+  const dist = 700;
+  let bx = Math.max(200, Math.min(WORLD_SIZE-200, state.player.x + Math.cos(angle)*dist));
+  let by = Math.max(200, Math.min(WORLD_SIZE-200, state.player.y + Math.sin(angle)*dist));
+  state.boss = { x: bx, y: by, vx: 0, vy: 0, icon: w.boss, hp: 500*levelScale, maxHp: 500*levelScale, damage: 25*levelScale, speed: 1.3, size: 36, xp: 200, coins: 100, comboXp: 50, color: '#ff4500', attackRate: 1500, attackTimer: 0, range: 55, hitTimer: 0, isBoss: true, shootTimer: 2000 };
+  $('bossBar').style.display = 'block';
+  $('bossName').textContent = w.bossName;
+  $('bossBar').querySelector('use').setAttribute('href', '#' + w.boss);
+  showNotification('БОСС: ' + w.bossName);
+}
+
+function manualAttack() {
+  const p = state.player;
+  if (p.attackCooldown > 0) return;
+  const all = state.boss ? [...state.enemies, state.boss] : state.enemies;
+  let nearest = null, nd = 80;
+  all.forEach(e => { if (e.hp <= 0) return; if (e.phaseVisible === false) return; const d = Math.hypot(e.x-p.x, e.y-p.y); if (d < nd) { nd = d; nearest = e; } });
+  if (nearest) attackEnemy(nearest);
+  else {
+    const angle = Math.atan2(p.facing.y, p.facing.x);
+    state.projectiles.push({ x: p.x, y: p.y, vx: Math.cos(angle)*9, vy: Math.sin(angle)*9, damage: 8 + p.level*2, size: 5, color: state.currentWorld.color, team: 'player', life: 1500 });
+    p.attackCooldown = p.attackRate;
+  }
+}
+function attackEnemy(enemy) {
+  const p = state.player;
+  p.attackCooldown = p.attackRate;
+  const damage = 10 + p.level*3 + (save.upgrades.dmg-1)*3;
+  damageEnemy(enemy, damage);
+  const angle = Math.atan2(enemy.y-p.y, enemy.x-p.x);
+  for (let i = 0; i < 3; i++) state.particles.push({ x: p.x+Math.cos(angle)*20, y: p.y+Math.sin(angle)*20, vx: Math.cos(angle)*2+(Math.random()-0.5)*2, vy: Math.sin(angle)*2+(Math.random()-0.5)*2, size: 3, color: '#ffd700', life: 300, maxLife: 300, alpha: 1 });
+}
+function damageEnemy(enemy, damage) {
+  enemy.hp -= damage; enemy.hitTimer = 200;
+  state.damageTexts.push({ x: enemy.x, y: enemy.y-enemy.size, text: '-'+Math.round(damage), color: '#ff4040', life: 800, maxLife: 800 });
+  if (enemy.hp <= 0) onEnemyKilled(enemy);
+}
+function onEnemyKilled(enemy) {
+  state.kills++;
+  addXP(enemy.xp);
+  state.coinsEarned += enemy.coins;
+  state.xpEarned += enemy.xp;
+  addComboXp(3);
+  for (let i = 0; i < 12; i++) { const a = Math.random()*Math.PI*2, sp = 1+Math.random()*3; state.particles.push({ x: enemy.x, y: enemy.y, vx: Math.cos(a)*sp, vy: Math.sin(a)*sp, size: 3+Math.random()*3, color: enemy.color, life: 600+Math.random()*400, maxLife: 1000, alpha: 1 }); }
+  if (enemy.isBoss) { state.boss = null; $('bossBar').style.display = 'none'; showNotification('БОСС ПОВЕРЖЕН!'); addXP(100); addComboXp(enemy.comboXp || 50); }
+}
+function damagePlayer(damage) {
+  const p = state.player;
+  if (p.invulnTimer > 0) return;
+  p.hp -= damage; p.invulnTimer = 600; p.damageTimer = 300;
+  state.damageTexts.push({ x: p.x, y: p.y-p.size, text: '-'+Math.round(damage), color: '#ff4040', life: 800, maxLife: 800 });
+  if (p.hp <= 0) { p.hp = 0; gameOver(); }
+}
+function addXP(amount) {
+  const p = state.player;
+  p.xp += amount;
+  while (p.xp >= p.xpNext) {
+    p.xp -= p.xpNext; p.level++;
+    p.xpNext = Math.floor(20*Math.pow(1.4, p.level-1));
+    p.maxHp += 20; p.hp = p.maxHp;
+    save.freePoints++;
+    showNotification('УРОВЕНЬ ' + p.level + '!');
+    for (let i = 0; i < 20; i++) { const a = Math.random()*Math.PI*2; state.particles.push({ x: p.x, y: p.y, vx: Math.cos(a)*3, vy: Math.sin(a)*3, size: 4, color: '#ffd700', life: 1000, maxLife: 1000, alpha: 1 }); }
+  }
+}
+function useSkill() {
+  const p = state.player;
+  if (p.skillCooldown > 0) return;
+  p.skillCooldown = p.skillRate;
+  const radius = 180;
+  const damage = 30 + p.level*5 + (save.upgrades.mag-1)*5;
+  const all = state.boss ? [...state.enemies, state.boss] : state.enemies;
+  all.forEach(e => { if (e.hp <= 0) return; const d = Math.hypot(e.x-p.x, e.y-p.y); if (d < radius) damageEnemy(e, damage); });
+  for (let i = 0; i < 40; i++) { const a = (i/40)*Math.PI*2; state.particles.push({ x: p.x, y: p.y, vx: Math.cos(a)*6, vy: Math.sin(a)*6, size: 5, color: '#ff8c00', life: 700, maxLife: 700, alpha: 1 }); }
+  state.particles.push({ x: p.x, y: p.y, isRing: true, radius: 0, maxRadius: radius, color: '#ff8c00', life: 500, maxLife: 500, alpha: 1 });
+}
+
+let lastTime = 0;
+function gameLoop(t) {
+  const dt = Math.min(t-lastTime, 50);
+  lastTime = t;
+  try { if (state.running && !state.paused) update(dt); } catch (e) { console.error('update error:', e); }
+  try { render(); } catch (e) { console.error('render error:', e); }
+  requestAnimationFrame(gameLoop);
+}
+
+function update(dt) {
+  state.frame++;
+  const p = state.player;
+  if (state.joystick.active) {
+    p.vx = state.joystick.dx * p.speed;
+    p.vy = state.joystick.dy * p.speed;
+    if (Math.abs(state.joystick.dx) > 0.1 || Math.abs(state.joystick.dy) > 0.1) {
+      const len = Math.hypot(state.joystick.dx, state.joystick.dy) || 1;
+      p.facing.x = state.joystick.dx / len;
+      p.facing.y = state.joystick.dy / len;
+    }
+  } else { p.vx *= 0.85; p.vy *= 0.85; }
+
+  p.x += p.vx*dt/16; p.y += p.vy*dt/16;
+  p.x = Math.max(20, Math.min(WORLD_SIZE-20, p.x));
+  p.y = Math.max(20, Math.min(WORLD_SIZE-20, p.y));
+
+  const tx = p.x - W/2, ty = p.y - H/2;
+  state.camera.x += (tx - state.camera.x) * 0.1;
+  state.camera.y += (ty - state.camera.y) * 0.1;
+
+  if (p.attackCooldown > 0) p.attackCooldown -= dt;
+  if (p.skillCooldown > 0) p.skillCooldown -= dt;
+  if (p.invulnTimer > 0) p.invulnTimer -= dt;
+  if (p.damageTimer > 0) p.damageTimer -= dt;
+
+  state.waveTimer -= dt;
+  if (state.waveTimer <= 0 && state.enemies.length < 60) spawnWave();
+
+  if (state.smokes.length > 0) {
+    state.smokes.forEach(s => { s.pulse += dt * 0.003; });
+    let inSmoke = false;
+    state.smokes.forEach(s => { if (Math.hypot(p.x - s.x, p.y - s.y) < s.radius) inSmoke = true; });
+    if (inSmoke) {
+      state.smokeDamageTimer = (state.smokeDamageTimer || 0) + dt;
+      if (state.smokeDamageTimer >= 500) { state.smokeDamageTimer = 0; damagePlayer(2); }
+    } else { state.smokeDamageTimer = 0; }
+  }
+
+  const all = state.boss ? [...state.enemies, state.boss] : state.enemies;
+  all.forEach(e => {
+    if (e.hp <= 0) return;
+    if (e.hitTimer > 0) e.hitTimer -= dt;
+    const dx = p.x-e.x, dy = p.y-e.y;
+    const dist = Math.hypot(dx, dy) || 1;
+
+    if (e.ranged) {
+      e.shootTimer -= dt;
+      if (e.shootTimer <= 0 && dist < 400) {
+        e.shootTimer = e.attackRate;
+        const ang = Math.atan2(p.y - e.y, p.x - e.x);
+        state.projectiles.push({ x: e.x, y: e.y, vx: Math.cos(ang)*4, vy: Math.sin(ang)*4, damage: e.damage, size: 5, color: e.color, team: 'enemy', life: 2500 });
+      }
+    }
+    if (e.trail && state.frame % 20 === 0) {
+      state.particles.push({ x: e.x, y: e.y, vx: 0, vy: 0, size: 14, color: '#ff4020', life: 2000, maxLife: 2000, alpha: 0.6, isLava: true });
+    }
+    if (e.jump) {
+      e.jumpTimer -= dt;
+      if (e.jumpTimer <= 0) {
+        e.jumpTimer = 2500;
+        const ang = Math.atan2(p.y - e.y, p.x - e.x);
+        e.vx = Math.cos(ang) * e.speed * 3;
+        e.vy = Math.sin(ang) * e.speed * 3;
+      }
+    }
+    if (e.teleport) {
+      e.teleportTimer -= dt;
+      if (e.teleportTimer <= 0) {
+        e.teleportTimer = 3000;
+        for (let i = 0; i < 8; i++) state.particles.push({ x: e.x, y: e.y, vx: (Math.random()-0.5)*4, vy: (Math.random()-0.5)*4, size: 3, color: '#8000ff', life: 400, maxLife: 400, alpha: 1 });
+        const ang = Math.random() * Math.PI * 2;
+        const dist2 = 200 + Math.random() * 200;
+        e.x = Math.max(50, Math.min(WORLD_SIZE-50, p.x + Math.cos(ang)*dist2));
+        e.y = Math.max(50, Math.min(WORLD_SIZE-50, p.y + Math.sin(ang)*dist2));
+        for (let i = 0; i < 8; i++) state.particles.push({ x: e.x, y: e.y, vx: (Math.random()-0.5)*4, vy: (Math.random()-0.5)*4, size: 3, color: '#8000ff', life: 400, maxLife: 400, alpha: 1 });
+      }
+    }
+    if (e.phase) {
+      e.phaseTimer -= dt;
+      if (e.phaseTimer <= 0) { e.phaseTimer = 2500; e.phaseVisible = !e.phaseVisible; }
+    }
+
+    if (dist > e.range*0.85) {
+      e.vx = (dx/dist)*e.speed; e.vy = (dy/dist)*e.speed;
+      e.x += e.vx*dt/16; e.y += e.vy*dt/16;
+    } else { e.vx *= 0.9; e.vy *= 0.9; }
+
+    if (e.attackTimer > 0) e.attackTimer -= dt;
+    if (dist < e.range && e.attackTimer <= 0 && (!e.ranged)) {
+      e.attackTimer = e.attackRate;
+      damagePlayer(e.damage);
+    }
+    if (e.isBoss) {
+      e.shootTimer -= dt;
+      if (e.shootTimer <= 0 && dist < 400) {
+        e.shootTimer = 2200;
+        for (let i = 0; i < 8; i++) { const a = (i/8)*Math.PI*2; state.projectiles.push({ x: e.x, y: e.y, vx: Math.cos(a)*3, vy: Math.sin(a)*3, damage: 10, size: 6, color: '#ff4500', team: 'enemy', life: 3000 }); }
+      }
+    }
+  });
+
+  state.particles.forEach(pa => {
+    if (pa.isLava && p.invulnTimer <= 0) {
+      if (Math.hypot(pa.x - p.x, pa.y - p.y) < pa.size) damagePlayer(3);
+    }
+  });
+
+  state.projectiles = state.projectiles.filter(pr => {
+    pr.x += pr.vx*dt/16; pr.y += pr.vy*dt/16; pr.life -= dt;
+    if (pr.team === 'enemy') {
+      if (Math.hypot(pr.x-p.x, pr.y-p.y) < p.size+pr.size) { damagePlayer(pr.damage); return false; }
+    } else {
+      for (let e of all) { if (!e || e.hp <= 0) continue; if (e.phaseVisible === false) continue; if (Math.hypot(pr.x-e.x, pr.y-e.y) < e.size+pr.size) { damageEnemy(e, pr.damage); return false; } }
+    }
+    return pr.life > 0;
+  });
+
+  state.particles = state.particles.filter(pa => {
+    if (!pa.ambient) { pa.x += pa.vx*dt/16; pa.y += pa.vy*dt/16; pa.vy += 0.05*dt/16; pa.life -= dt; pa.alpha = Math.max(0, pa.life/pa.maxLife); }
+    return pa.life > 0;
+  });
+  state.damageTexts = state.damageTexts.filter(t => { t.y -= 0.8*dt/16; t.life -= dt; return t.life > 0; });
+  state.enemies = state.enemies.filter(e => e && e.hp > 0);
+
+  let nearest = null, nd = 75;
+  all.forEach(e => { if (!e || e.hp <= 0) return; if (e.phaseVisible === false) return; const d = Math.hypot(e.x-p.x, e.y-p.y); if (d < nd) { nd = d; nearest = e; } });
+  if (nearest && p.attackCooldown <= 0) attackEnemy(nearest);
+
+  updateUI();
+}
+
+function updateUI() {
+  const p = state.player;
+  $('hpFill').style.width = Math.max(0, (p.hp/p.maxHp)*100) + '%';
+  $('xpFill').style.width = Math.min(100, (p.xp/p.xpNext)*100) + '%';
+  $('hudLevel').textContent = 'Ур. ' + p.level;
+  $('enemyCount').textContent = state.enemies.length;
+  if ($('menuBest')) $('menuBest').textContent = save.bestWave;
+  const aBtn = $('attackBtn'), sBtn = $('skillBtn');
+  if (p.attackCooldown > 0) { aBtn.classList.add('cooldown'); aBtn.style.setProperty('--cd', (p.attackCooldown/p.attackRate*360)+'deg'); } else aBtn.classList.remove('cooldown');
+  if (p.skillCooldown > 0) { sBtn.classList.add('cooldown'); sBtn.style.setProperty('--cd', (p.skillCooldown/p.skillRate*360)+'deg'); } else sBtn.classList.remove('cooldown');
+  if (state.boss && state.boss.hp > 0) $('bossHpFill').style.width = (state.boss.hp/state.boss.maxHp*100) + '%';
+}
+
+function showNotification(text) {
+  const c = $('notifications');
+  const el = document.createElement('div');
+  el.className = 'notif'; el.textContent = text;
+  c.appendChild(el);
+  setTimeout(() => el.remove(), 2200);
+}
+
+function render() {
+  const w = state.currentWorld;
+  const grad = ctx.createRadialGradient(W/2, H/2, 100, W/2, H/2, Math.max(W, H));
+  grad.addColorStop(0, w.bgColors[0]); grad.addColorStop(1, w.bgColors[1]);
+  ctx.fillStyle = grad; ctx.fillRect(0, 0, W, H);
+  if (!state.running && !state.paused) return;
+
+  ctx.strokeStyle = w.gridColor; ctx.lineWidth = 1;
+  const gs = 80;
+  const sx = -state.camera.x % gs, sy = -state.camera.y % gs;
+  for (let x = sx; x < W; x += gs) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
+  for (let y = sy; y < H; y += gs) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+
+  ctx.strokeStyle = w.color; ctx.lineWidth = 3; ctx.globalAlpha = 0.4;
+  ctx.strokeRect(-state.camera.x, -state.camera.y, WORLD_SIZE, WORLD_SIZE);
+  ctx.globalAlpha = 1;
+
+  ctx.save();
+  ctx.translate(-state.camera.x, -state.camera.y);
+
+  state.smokes.forEach(s => {
+    const pulseR = s.radius + Math.sin(s.pulse) * 8;
+    const g = ctx.createRadialGradient(s.x, s.y, 0, s.x, s.y, pulseR);
+    g.addColorStop(0, 'rgba(64, 255, 0, 0.35)');
+    g.addColorStop(0.5, 'rgba(32, 200, 0, 0.2)');
+    g.addColorStop(1, 'rgba(20, 100, 0, 0)');
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(s.x, s.y, pulseR, 0, Math.PI*2); ctx.fill();
+    for (let i = 0; i < 4; i++) {
+      const a = s.angle + i * Math.PI/2 + Math.sin(s.pulse + i)*0.3;
+      const dx = Math.cos(a) * pulseR * 0.5;
+      const dy = Math.sin(a) * pulseR * 0.5;
+      ctx.fillStyle = 'rgba(100, 255, 50, 0.15)';
+      ctx.beginPath(); ctx.arc(s.x + dx, s.y + dy, 15 + Math.sin(s.pulse + i)*5, 0, Math.PI*2); ctx.fill();
+    }
+  });
+
+  state.particles.forEach(pa => {
+    if (!pa.ambient) return;
+    if (pa.x < state.camera.x-50 || pa.x > state.camera.x+W+50) return;
+    if (pa.y < state.camera.y-50 || pa.y > state.camera.y+H+50) return;
+    ctx.fillStyle = pa.color;
+    ctx.globalAlpha = pa.alpha * (0.5 + Math.sin(state.frame*0.02 + pa.x)*0.5);
+    ctx.fillRect(pa.x, pa.y, pa.size, pa.size);
+  });
+  ctx.globalAlpha = 1;
+
+  state.enemies.forEach(drawEntity);
+  if (state.boss && state.boss.hp > 0) drawEntity(state.boss);
+
+  state.projectiles.forEach(pr => {
+    ctx.fillStyle = pr.color; ctx.shadowColor = pr.color; ctx.shadowBlur = 15;
+    ctx.beginPath(); ctx.arc(pr.x, pr.y, pr.size, 0, Math.PI*2); ctx.fill();
+    ctx.shadowBlur = 0;
+  });
+
+  state.particles.forEach(pa => {
+    if (pa.ambient) return;
+    if (pa.isLava) {
+      ctx.fillStyle = pa.color; ctx.globalAlpha = pa.alpha * 0.7;
+      ctx.shadowColor = pa.color; ctx.shadowBlur = 20;
+      ctx.beginPath(); ctx.arc(pa.x, pa.y, pa.size, 0, Math.PI * 2); ctx.fill();
+      ctx.shadowBlur = 0; ctx.globalAlpha = 1;
+      return;
+    }
+    if (pa.isRing) { ctx.strokeStyle = pa.color; ctx.lineWidth = 4; ctx.globalAlpha = pa.alpha; ctx.beginPath(); ctx.arc(pa.x, pa.y, pa.radius, 0, Math.PI*2); ctx.stroke(); ctx.globalAlpha = 1; pa.radius += (pa.maxRadius-pa.radius)*0.15; return; }
+    ctx.fillStyle = pa.color; ctx.globalAlpha = pa.alpha; ctx.shadowColor = pa.color; ctx.shadowBlur = 8;
+    ctx.fillRect(pa.x-pa.size/2, pa.y-pa.size/2, pa.size, pa.size);
+    ctx.shadowBlur = 0; ctx.globalAlpha = 1;
+  });
+
+  drawPlayer();
+
+  state.damageTexts.forEach(t => {
+    ctx.globalAlpha = Math.min(1, t.life/400);
+    ctx.fillStyle = t.color; ctx.font = 'bold 16px Arial'; ctx.textAlign = 'center';
+    ctx.shadowColor = '#000'; ctx.shadowBlur = 4;
+    ctx.fillText(t.text, t.x, t.y);
+    ctx.shadowBlur = 0;
+  });
+  ctx.globalAlpha = 1;
+  ctx.restore();
+  drawMinimap();
+}
+
+function drawEntity(e) {
+  if (e.phaseVisible === false) return;
+  ctx.save(); ctx.translate(e.x, e.y);
+  ctx.shadowColor = e.color; ctx.shadowBlur = 15;
+  let sx = 0, sy = 0;
+  if (e.hitTimer > 0) { sx = (Math.random()-0.5)*4; sy = (Math.random()-0.5)*4; }
+  ctx.translate(sx, sy);
+  if (e.phase) ctx.globalAlpha = 0.7;
+  drawIcon(ctx, e.icon, 0, 0, e.size*2);
+  ctx.globalAlpha = 1;
+  ctx.shadowBlur = 0;
+  const bw = e.size*2.2, bh = 4, by = -e.size-12;
+  ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillRect(-bw/2, by, bw, bh);
+  const hp = e.hp/e.maxHp;
+  ctx.fillStyle = hp > 0.5 ? '#40ff40' : (hp > 0.25 ? '#ffd700' : '#ff4040');
+  ctx.fillRect(-bw/2, by, bw*hp, bh);
+  ctx.strokeStyle = '#000'; ctx.lineWidth = 1; ctx.strokeRect(-bw/2, by, bw, bh);
+  ctx.restore();
+}
+function drawPlayer() {
+  const p = state.player;
+  ctx.save(); ctx.translate(p.x, p.y);
+  if (p.invulnTimer > 0 && Math.floor(p.invulnTimer/60)%2 === 0) ctx.globalAlpha = 0.5;
+  ctx.shadowColor = state.currentWorld.color; ctx.shadowBlur = 20;
+  const grad = ctx.createRadialGradient(0, 0, 0, 0, 0, p.size*2);
+  grad.addColorStop(0, state.currentWorld.color + '66');
+  grad.addColorStop(1, state.currentWorld.color + '00');
+  ctx.fillStyle = grad;
+  ctx.beginPath(); ctx.arc(0, 0, p.size*2, 0, Math.PI*2); ctx.fill();
+  drawIcon(ctx, p.skin, 0, 0, p.size*2.4);
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = '#ffd700'; ctx.font = 'bold 11px Arial'; ctx.textAlign = 'center';
+  ctx.shadowColor = '#000'; ctx.shadowBlur = 3;
+  ctx.fillText('Ур.' + p.level, 0, -p.size-8);
+  ctx.shadowBlur = 0; ctx.restore();
+}
+function drawMinimap() {
+  if (!minimap.width) return;
+  const mw = minimap.width, mh = minimap.height;
+  mctx.clearRect(0, 0, mw, mh);
+  mctx.fillStyle = 'rgba(0,5,20,0.9)'; mctx.fillRect(0, 0, mw, mh);
+  const sx = mw/WORLD_SIZE, sy = mh/WORLD_SIZE;
+  state.smokes.forEach(s => {
+    mctx.fillStyle = 'rgba(64, 255, 0, 0.3)';
+    mctx.beginPath(); mctx.arc(s.x*sx, s.y*sy, s.radius*sx, 0, Math.PI*2); mctx.fill();
+  });
+  state.enemies.forEach(e => { if (!e) return; mctx.fillStyle = '#ff4040'; mctx.fillRect(e.x*sx-1, e.y*sy-1, 2, 2); });
+  if (state.boss && state.boss.hp > 0) { mctx.fillStyle = '#ff8c00'; mctx.beginPath(); mctx.arc(state.boss.x*sx, state.boss.y*sy, 4, 0, Math.PI*2); mctx.fill(); }
+  mctx.fillStyle = '#00ffff'; mctx.shadowColor = '#00ffff'; mctx.shadowBlur = 5;
+  mctx.beginPath(); mctx.arc(state.player.x*sx, state.player.y*sy, 3, 0, Math.PI*2); mctx.fill();
+  mctx.shadowBlur = 0;
+  mctx.strokeStyle = '#ff8c00'; mctx.lineWidth = 1; mctx.strokeRect(0.5, 0.5, mw-1, mh-1);
+}
+
+function gameOver() {
+  state.running = false;
+  save.coins += state.coinsEarned;
+  save.xp += state.xpEarned;
+  save.kills += state.kills;
+  save.totalCoinsEarned = (save.totalCoinsEarned || 0) + state.coinsEarned;
+  save.totalXpEarned = (save.totalXpEarned || 0) + state.xpEarned;
+  if (state.waves > save.bestWave) save.bestWave = state.waves;
+  const rec = save.worldRecords[state.currentWorld.id] || 0;
+  if (state.waves > rec) save.worldRecords[state.currentWorld.id] = state.waves;
+  while (save.xp >= xpForLevel(save.level)) { save.xp -= xpForLevel(save.level); save.level++; save.freePoints += 3; }
+  persistSave(true);
+  updatePassTabGlow();
+  $('deathWorld').textContent = state.currentWorld.name;
+  $('deathWave').textContent = state.waves;
+  $('deathKills').textContent = state.kills;
+  $('deathCoins').textContent = state.coinsEarned;
+  if (autoSaveInterval) clearInterval(autoSaveInterval);
+  setTimeout(() => { setHUDVisible(false); showScreen('deathScreen'); }, 800);
+}
+function pauseGame() { if (!state.running) return; state.paused = true; showScreen('pauseScreen'); }
+function resumeGame() { state.paused = false; showScreen(null); }
+function showStats() { state.paused = false; refreshUpgradeScreen(); showScreen('upgradeScreen'); }
+function quitToMenu() {
+  state.running = false; state.paused = false;
+  save.coins += state.coinsEarned; save.xp += state.xpEarned; save.kills += state.kills;
+  save.totalCoinsEarned = (save.totalCoinsEarned || 0) + state.coinsEarned;
+  save.totalXpEarned = (save.totalXpEarned || 0) + state.xpEarned;
+  if (state.waves > save.bestWave) save.bestWave = state.waves;
+  const rec = save.worldRecords[state.currentWorld.id] || 0;
+  if (state.waves > rec) save.worldRecords[state.currentWorld.id] = state.waves;
+  while (save.xp >= xpForLevel(save.level)) { save.xp -= xpForLevel(save.level); save.level++; save.freePoints += 3; }
+  persistSave(true);
+  updatePassTabGlow();
+  if (autoSaveInterval) clearInterval(autoSaveInterval);
+  setHUDVisible(false); $('bossBar').style.display = 'none';
+  showScreen('mainMenu'); refreshMenu();
+}
+function restartGame() { startGame(state.currentWorld); }
+function toMainMenu() { setHUDVisible(false); $('bossBar').style.display = 'none'; showScreen('mainMenu'); refreshMenu(); }
+
+const origShowScreen = showScreen;
+window.showScreen = function(id) {
+  if (id === 'mainMenu') { state.running = false; state.paused = false; setHUDVisible(false); $('bossBar').style.display = 'none'; }
+  origShowScreen(id);
+  if (id === 'mainMenu') refreshMenu();
+};
+
+setTimeout(() => {
+  const input = $('nickInput');
+  if (input) {
+    input.addEventListener('input', updateNickCounter);
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') saveNickname();
+      if (e.key === 'Escape') closeNickModal();
+    });
+  }
+}, 100);
+
+loadSave();
+refreshMenu();
+refreshComboPass();
+updatePassTabGlow();
+showScreen('mainMenu');
+setHUDVisible(false);
+resize();
+
+window.addEventListener('beforeunload', () => {
+  if (state.running) {
+    save.coins += state.coinsEarned - (state._lastSavedCoins || 0);
+    save.xp += state.xpEarned - (state._lastSavedXp || 0);
+    save.kills += state.kills - (state._lastSavedKills || 0);
+    if (state.waves > save.bestWave) save.bestWave = state.waves;
+  }
+  persistSave();
+});
+document.addEventListener('visibilitychange', () => { if (document.hidden && state.running) { state.paused = true; if (state.waves > save.bestWave) save.bestWave = state.waves; persistSave(); } });
+
+requestAnimationFrame(gameLoop);
+</script>
+</body>
+  </html>
