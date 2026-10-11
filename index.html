@@ -81,10 +81,10 @@
   .big-play-btn { width: 100%; max-width: 380px; padding: 16px; border-radius: 14px; border: 3px solid #ffd700; background: linear-gradient(180deg, #ff8c00, #ff4500); color: #fff; font-size: 20px; font-weight: bold; letter-spacing: 4px; font-family: inherit; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; box-shadow: 0 0 30px rgba(255,140,0,0.7), inset 0 -4px 0 rgba(0,0,0,0.3); text-shadow: 0 2px 4px rgba(0,0,0,0.5); transition: all 0.15s; margin-bottom: 14px; }
   .big-play-btn:active { transform: scale(0.97); }
   .big-play-btn svg { width: 26px; height: 26px; filter: drop-shadow(0 0 4px #fff); }
-  .bottom-tabs { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; width: 100%; max-width: 380px; }
-  .tab-btn { background: linear-gradient(180deg, rgba(255,140,0,0.18), rgba(255,140,0,0.05)); border: 2px solid #ff8c00; border-radius: 12px; padding: 10px 4px; display: flex; flex-direction: column; align-items: center; gap: 4px; color: #ff8c00; font-size: 9px; font-weight: bold; letter-spacing: 1px; cursor: pointer; text-shadow: 0 0 5px #ff8c00; box-shadow: 0 0 10px rgba(255,140,0,0.25); transition: all 0.15s; font-family: inherit; }
+  .bottom-tabs { display: grid; grid-template-columns: repeat(6, 1fr); gap: 5px; width: 100%; max-width: 380px; }
+  .tab-btn { background: linear-gradient(180deg, rgba(255,140,0,0.18), rgba(255,140,0,0.05)); border: 2px solid #ff8c00; border-radius: 12px; padding: 10px 2px; display: flex; flex-direction: column; align-items: center; gap: 4px; color: #ff8c00; font-size: 8px; font-weight: bold; letter-spacing: 0.5px; cursor: pointer; text-shadow: 0 0 5px #ff8c00; box-shadow: 0 0 10px rgba(255,140,0,0.25); transition: all 0.15s; font-family: inherit; }
   .tab-btn:active { transform: scale(0.94); }
-  .tab-btn svg { width: 22px; height: 22px; color: #ffd700; filter: drop-shadow(0 0 4px #ff8c00); }
+  .tab-btn svg { width: 20px; height: 20px; color: #ffd700; filter: drop-shadow(0 0 4px #ff8c00); }
   .tab-btn.has-reward { border-color: #ffd700; color: #ffd700; text-shadow: 0 0 10px #ffd700; animation: rewardPulse 1.5s ease-in-out infinite; }
   .tab-btn.has-reward svg { color: #ffd700; filter: drop-shadow(0 0 8px #ffd700); }
   @keyframes rewardPulse { 0%, 100% { box-shadow: 0 0 15px rgba(255,215,0,0.5), inset 0 0 10px rgba(255,215,0,0.2); } 50% { box-shadow: 0 0 30px rgba(255,215,0,1), inset 0 0 20px rgba(255,215,0,0.5); } }
@@ -202,6 +202,8 @@
       <symbol id="icon-pass" viewBox="0 0 32 32"><rect x="4" y="6" width="24" height="20" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="15" r="3" fill="currentColor"/><path d="M7 24 Q12 18 17 24" fill="none" stroke="currentColor" stroke-width="2"/><path d="M20 12 L26 12 M20 16 L26 16 M20 20 L24 20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
       <symbol id="icon-edit" viewBox="0 0 32 32"><path d="M4 28 L6 22 L22 6 L26 10 L10 26 Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M20 8 L24 12" stroke="currentColor" stroke-width="2"/><circle cx="5" cy="27" r="2" fill="currentColor"/></symbol>
       <symbol id="icon-avatar" viewBox="0 0 32 32"><circle cx="16" cy="12" r="6" fill="none" stroke="currentColor" stroke-width="2"/><path d="M6 28 Q6 18 16 18 Q26 18 26 28" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
+      <symbol id="icon-fighter" viewBox="0 0 32 32"><circle cx="16" cy="9" r="5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M10 16 L10 28 M22 16 L22 28 M10 22 L22 22 M6 16 L10 16 M22 16 L26 16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></symbol>
+      <symbol id="fighter-andrew" viewBox="0 0 32 32"><circle cx="16" cy="9" r="6" fill="#ffd0a0" stroke="#a06020" stroke-width="1.5"/><path d="M11 5 Q16 1 21 5 Q20 3 16 3 Q12 3 11 5 Z" fill="#603010"/><circle cx="14" cy="9" r="1" fill="#000"/><circle cx="18" cy="9" r="1" fill="#000"/><path d="M14 12 Q16 13 18 12" stroke="#a06020" stroke-width="1" fill="none"/><path d="M10 28 L10 17 Q10 15 16 15 Q22 15 22 17 L22 28 Z" fill="#4080ff" stroke="#204080" stroke-width="1.5"/><rect x="8" y="17" width="3" height="6" fill="#ffd0a0" stroke="#a06020" stroke-width="1"/><rect x="21" y="17" width="3" height="6" fill="#ffd0a0" stroke="#a06020" stroke-width="1"/></symbol>
     </defs>
   </svg>
 
@@ -276,6 +278,7 @@
     <button class="big-play-btn" onclick="openWorlds()"><svg><use href="#icon-play"/></svg> ИГРАТЬ</button>
     <div class="bottom-tabs">
       <div class="tab-btn" id="passTabBtn" onclick="openComboPass()"><svg><use href="#icon-pass"/></svg><span>ПРОПУСК</span></div>
+      <div class="tab-btn" onclick="openFighters()"><svg><use href="#icon-fighter"/></svg><span>БОЙЦЫ</span></div>
       <div class="tab-btn" onclick="openAvatars()"><svg><use href="#icon-avatar"/></svg><span>ИКОНКИ</span></div>
       <div class="tab-btn" onclick="changeNickname()"><svg><use href="#icon-edit"/></svg><span>НИК</span></div>
       <div class="tab-btn" onclick="openShop()"><svg><use href="#icon-shop"/></svg><span>МАГАЗИН</span></div>
@@ -287,6 +290,13 @@
   <div class="screen hidden" id="worldsScreen">
     <h2><svg style="color:#ff8c00"><use href="#icon-world"/></svg> ВЫБОР МИРА</h2>
     <div class="world-grid" id="worldsGrid"></div>
+    <button class="btn pink" onclick="showScreen('mainMenu')">НАЗАД</button>
+  </div>
+
+  <div class="screen hidden" id="fightersScreen">
+    <h2><svg style="color:#ff8c00"><use href="#icon-fighter"/></svg> БОЙЦЫ</h2>
+    <p style="color:#ff8c00;font-size:11px;">Выбери своего бойца</p>
+    <div class="shop-grid" id="fightersGrid" style="grid-template-columns: repeat(2, 1fr);"></div>
     <button class="btn pink" onclick="showScreen('mainMenu')">НАЗАД</button>
   </div>
 
@@ -352,9 +362,7 @@
     <button class="btn gold" onclick="showStats()"><svg><use href="#icon-upgrade"/></svg> ПРОКАЧКА</button>
     <button class="btn pink" onclick="quitToMenu()">В МЕНЮ</button>
   </div>
-</div>
-
-<script>
+                                                                                                                                                                                                  </div><script>
 const $ = id => document.getElementById(id);
 function getSVG(id, size = 24, color = 'currentColor') {
   return `<svg style="width:${size}px;height:${size}px;color:${color};filter:drop-shadow(0 0 3px ${color})"><use href="#${id}"/></svg>`;
@@ -439,6 +447,32 @@ const AVATARS = [
   { id: 'avatar-crown', name: 'КОРОНА', price: 800 },
 ];
 
+const FIGHTERS = [
+  { id: 'fighter-andrew', name: 'ЭНДРЮ' },
+];
+let selectedFighter = 'fighter-andrew';
+
+function openFighters() { renderFighters(); showScreen('fightersScreen'); }
+function renderFighters() {
+  const g = $('fightersGrid'); if (!g) return; g.innerHTML = '';
+  FIGHTERS.forEach(f => {
+    const eq = selectedFighter === f.id;
+    const c = document.createElement('div');
+    c.className = 'skin-card' + (eq ? ' equipped' : '');
+    c.style.padding = '14px';
+    c.innerHTML = `<div class="skin-preview">${getSVG(f.id, 56, '#ff8c00')}</div>
+      <div class="skin-name" style="font-size:13px;color:#ffd700;margin-top:6px;">${f.name}</div>
+      <div class="skin-price" style="color:${eq?'#ffd700':'#00ff88'};margin-top:4px;">${eq?'ВЫБРАН':'ВЫБРАТЬ'}</div>`;
+    c.onclick = () => {
+      selectedFighter = f.id;
+      persistSave(true);
+      renderFighters();
+      showNotification('Боец выбран: ' + f.name);
+    };
+    g.appendChild(c);
+  });
+}
+
 const WORLDS = [
   { id: 'neon', name: 'НЕО-ГОРОД', icon: 'world-neon', color: '#00ffff', desc: 'Неоновые улицы киберпанка', enemies: ['enemy-slime', 'enemy-bat', 'enemy-skeleton', 'enemy-robot', 'enemy-drone'], boss: 'boss-cyber', bossName: 'КИБЕР-СТРАЖ', bgColors: ['#050510', '#0a0520'], gridColor: 'rgba(0, 255, 255, 0.08)' },
   { id: 'ice', name: 'ЛЕДЯНЫЕ ПУСТОШИ', icon: 'world-ice', color: '#80e0ff', desc: 'Замёрзшие земли севера', enemies: ['enemy-slime', 'enemy-skeleton', 'enemy-golem', 'enemy-bat', 'enemy-ice-golem'], boss: 'boss-demon', bossName: 'ЛЕДЯНОЙ ТИТАН', bgColors: ['#000a15', '#001428'], gridColor: 'rgba(128, 224, 255, 0.1)' },
@@ -483,7 +517,7 @@ const COMBO_REWARDS = [
   { level: 30, type: 'skin',   skin: 'skin-demon',   name: 'СКИН: ОГНЕННЫЙ ДЕМОН', icon: 'skin-demon' },
 ];
 
-const SAVE_KEY = 'neonworlds_save_v12';
+const SAVE_KEY = 'neonworlds_save_v13';
 const DEFAULT_SAVE = {
   nickname: 'НЕО-СТРАННИК',
   avatar: 'skin-default',
@@ -1242,7 +1276,8 @@ function drawPlayer() {
   grad.addColorStop(1, state.currentWorld.color + '00');
   ctx.fillStyle = grad;
   ctx.beginPath(); ctx.arc(0, 0, p.size*2, 0, Math.PI*2); ctx.fill();
-  drawIcon(ctx, p.skin, 0, 0, p.size*2.4);
+  // В бою рисуем ЭНДРЮ (бойца), а не скин
+  drawIcon(ctx, selectedFighter, 0, 0, p.size*2.4);
   ctx.shadowBlur = 0;
   ctx.fillStyle = '#ffd700'; ctx.font = 'bold 11px Arial'; ctx.textAlign = 'center';
   ctx.shadowColor = '#000'; ctx.shadowBlur = 3;
@@ -1348,4 +1383,4 @@ document.addEventListener('visibilitychange', () => { if (document.hidden && sta
 requestAnimationFrame(gameLoop);
 </script>
 </body>
- </html>
+</html>
