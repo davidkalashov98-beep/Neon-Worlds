@@ -143,6 +143,10 @@
   .nick-btn:active { transform: scale(0.96); }
   .nick-btn.cancel { background: rgba(80, 40, 20, 0.4); border-color: #804020; color: #c08060; }
   .nick-btn.save { background: linear-gradient(180deg, #ff8c00, #ff4500); border-color: #ffd700; color: #fff; text-shadow: 0 2px 4px rgba(0,0,0,0.5); box-shadow: 0 0 20px rgba(255, 140, 0, 0.6); }
+  .shop-tabs { display: flex; gap: 8px; width: 100%; max-width: 380px; margin: 8px 0 4px; }
+  .shop-tab { flex: 1; padding: 10px 8px; background: linear-gradient(180deg, rgba(255,140,0,0.1), rgba(255,140,0,0.03)); border: 2px solid rgba(255,140,0,0.4); border-radius: 10px; color: #ff8c00; font-size: 12px; font-weight: bold; letter-spacing: 2px; cursor: pointer; transition: all 0.2s; font-family: inherit; text-shadow: 0 0 5px currentColor; display: flex; align-items: center; justify-content: center; gap: 6px; }
+  .shop-tab svg { width: 16px; height: 16px; }
+  .shop-tab.active { border-color: #ffd700; color: #ffd700; background: linear-gradient(180deg, rgba(255,215,0,0.25), rgba(255,215,0,0.08)); box-shadow: 0 0 15px rgba(255,215,0,0.4); }
 </style>
 </head>
 <body>
@@ -202,6 +206,13 @@
       <symbol id="icon-pass" viewBox="0 0 32 32"><rect x="4" y="6" width="24" height="20" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="15" r="3" fill="currentColor"/><path d="M7 24 Q12 18 17 24" fill="none" stroke="currentColor" stroke-width="2"/><path d="M20 12 L26 12 M20 16 L26 16 M20 20 L24 20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
       <symbol id="icon-edit" viewBox="0 0 32 32"><path d="M4 28 L6 22 L22 6 L26 10 L10 26 Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M20 8 L24 12" stroke="currentColor" stroke-width="2"/><circle cx="5" cy="27" r="2" fill="currentColor"/></symbol>
       <symbol id="icon-avatar" viewBox="0 0 32 32"><circle cx="16" cy="12" r="6" fill="none" stroke="currentColor" stroke-width="2"/><path d="M6 28 Q6 18 16 18 Q26 18 26 28" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
+      <symbol id="icon-gift" viewBox="0 0 32 32">
+        <rect x="5" y="12" width="22" height="16" rx="2" fill="#ff0040" stroke="#ffd700" stroke-width="1.5"/>
+        <rect x="3" y="8" width="26" height="5" rx="1" fill="#ffd700" stroke="#ff8c00" stroke-width="1"/>
+        <path d="M16 8 Q10 8 10 4 Q10 1 13 1 Q16 1 16 8 Z" fill="#ffd700" stroke="#ff8c00" stroke-width="1"/>
+        <path d="M16 8 Q22 8 22 4 Q22 1 19 1 Q16 1 16 8 Z" fill="#ffd700" stroke="#ff8c00" stroke-width="1"/>
+        <rect x="14" y="8" width="4" height="20" fill="#ffd700" stroke="#ff8c00" stroke-width="1"/>
+      </symbol>
     </defs>
   </svg>
 
@@ -298,9 +309,18 @@
   </div>
 
   <div class="screen hidden" id="shopScreen">
-    <h2><svg style="color:#ff8c00"><use href="#icon-shop"/></svg> МАГАЗИН СКИНОВ</h2>
+    <h2><svg style="color:#ff8c00"><use href="#icon-shop"/></svg> МАГАЗИН</h2>
     <div class="resource-bar"><div class="resource"><svg><use href="#icon-coin"/></svg><span id="shopCoins">0</span></div></div>
-    <div class="shop-grid" id="shopGrid"></div>
+    <div class="shop-tabs">
+      <div class="shop-tab active" id="shopTabSkins" onclick="switchShopTab('skins')"><svg><use href="#icon-shop"/></svg> СКИНЫ</div>
+      <div class="shop-tab" id="shopTabPromo" onclick="switchShopTab('promo')"><svg><use href="#icon-gift"/></svg> АКЦИИ</div>
+    </div>
+    <div id="shopSkinsTab" style="width:100%;">
+      <div class="shop-grid" id="shopGrid"></div>
+    </div>
+    <div id="shopPromoTab" style="width:100%;display:none;">
+      <div id="promoGrid" style="width:100%;max-width:380px;"></div>
+    </div>
     <button class="btn pink" onclick="showScreen('mainMenu')">НАЗАД</button>
   </div>
 
@@ -494,6 +514,9 @@ const DEFAULT_SAVE = {
   freePoints: 5, worldRecords: {}, lastPlayed: 0,
   totalCoinsEarned: 0, totalXpEarned: 0,
   comboLevel: 1, comboXp: 0, comboClaimed: [],
+  mondayGiftClaimed: false,
+  mondayGiftStart: null,
+  mondayGiftEnd: null,
 };
 let save = JSON.parse(JSON.stringify(DEFAULT_SAVE));
 
@@ -682,7 +705,24 @@ function handleAvatarClick(av) {
   } else showNotification('Не хватает монет!');
 }
 
-function openShop() { $('shopCoins').textContent = save.coins; renderShop(); showScreen('shopScreen'); }
+let currentShopTab = 'skins';
+
+function openShop() {
+  $('shopCoins').textContent = save.coins;
+  renderShop();
+  switchShopTab('skins');
+  showScreen('shopScreen');
+}
+
+function switchShopTab(tab) {
+  currentShopTab = tab;
+  $('shopSkinsTab').style.display = tab === 'skins' ? 'block' : 'none';
+  $('shopPromoTab').style.display = tab === 'promo' ? 'block' : 'none';
+  $('shopTabSkins').classList.toggle('active', tab === 'skins');
+  $('shopTabPromo').classList.toggle('active', tab === 'promo');
+  if (tab === 'promo') renderPromo();
+}
+
 function renderShop() {
   const g = $('shopGrid'); g.innerHTML = '';
   SKINS.forEach(skin => {
@@ -700,6 +740,81 @@ function handleSkinClick(skin) {
   if (save.ownedSkins.includes(skin.id)) { save.equippedSkin = skin.id; state.player.skin = skin.id; updateHUDAvatar(); refreshMenu(); showNotification('Скин надет: ' + skin.name); persistSave(true); renderShop(); }
   else if (save.coins >= skin.price) { save.coins -= skin.price; save.ownedSkins.push(skin.id); save.equippedSkin = skin.id; showNotification('Куплен: ' + skin.name); persistSave(true); renderShop(); refreshMenu(); }
   else showNotification('Не хватает монет!');
+}
+
+function renderPromo() {
+  const g = $('promoGrid');
+  if (!g) return;
+  g.innerHTML = '';
+
+  const now = Date.now();
+  const GIFT_DURATION = 5 * 24 * 60 * 60 * 1000; // 5 дней
+
+  // При первом открытии запускаем таймер акции
+  if (!save.mondayGiftStart) {
+    save.mondayGiftStart = now;
+    save.mondayGiftEnd = now + GIFT_DURATION;
+    persistSave();
+  }
+
+  const expired = save.mondayGiftEnd && now > save.mondayGiftEnd;
+  const claimed = save.mondayGiftClaimed;
+
+  if (expired && !claimed) {
+    const card = document.createElement('div');
+    card.style.cssText = 'width:100%;background:rgba(40,15,0,0.6);border:2px solid #444;border-radius:12px;padding:16px;text-align:center;color:#888;font-size:12px;font-weight:bold;letter-spacing:2px;';
+    card.textContent = 'АКЦИЯ ЗАВЕРШЕНА';
+    g.appendChild(card);
+    return;
+  }
+
+  if (claimed) {
+    const card = document.createElement('div');
+    card.style.cssText = 'width:100%;background:linear-gradient(135deg,rgba(0,255,136,0.1),rgba(0,200,100,0.05));border:2px solid #00ff88;border-radius:12px;padding:16px;text-align:center;color:#00ff88;font-size:12px;font-weight:bold;letter-spacing:2px;box-shadow:0 0 20px rgba(0,255,136,0.3);';
+    card.textContent = '✓ ПОДАРОК ПОЛУЧЕН';
+    g.appendChild(card);
+    return;
+  }
+
+  // Показываем активный подарок
+  const msLeft = save.mondayGiftEnd - now;
+  const daysLeft = Math.floor(msLeft / (24*60*60*1000));
+  const hoursLeft = Math.floor((msLeft % (24*60*60*1000)) / (60*60*1000));
+  const timeText = daysLeft > 0 ? `Осталось: ${daysLeft}д ${hoursLeft}ч` : `Осталось: ${hoursLeft}ч`;
+
+  const card = document.createElement('div');
+  card.style.cssText = 'width:100%;background:linear-gradient(135deg,rgba(255,215,0,0.15),rgba(255,140,0,0.08));border:2px solid #ffd700;border-radius:14px;padding:16px;display:flex;align-items:center;gap:14px;box-shadow:0 0 25px rgba(255,215,0,0.4);position:relative;overflow:hidden;';
+  card.innerHTML = `
+    <div style="width:64px;height:64px;flex-shrink:0;border-radius:50%;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle,rgba(255,215,0,0.35),rgba(255,140,0,0.1));border:2px solid #ffd700;box-shadow:0 0 20px rgba(255,215,0,0.6);">
+      ${getSVG('icon-gift', 40, '#ffd700')}
+    </div>
+    <div style="flex:1;min-width:0;">
+      <div style="font-size:10px;color:#ff8c00;font-weight:bold;letter-spacing:2px;">ПОДАРОК</div>
+      <div style="font-size:15px;color:#ffd700;font-weight:bold;text-shadow:0 0 10px #ff8c00;margin:2px 0;">С ПОНЕДЕЛЬНИКОМ!</div>
+      <div style="font-size:11px;color:#ffd700;">+1000 монет</div>
+      <div style="font-size:9px;color:#ff8c00;margin-top:3px;">${timeText}</div>
+    </div>
+    <button id="claimGiftBtn" style="padding:10px 16px;border-radius:8px;font-family:inherit;font-size:12px;font-weight:bold;letter-spacing:1px;border:2px solid #ffd700;background:linear-gradient(180deg,#ff8c00,#ff4500);color:#fff;cursor:pointer;text-shadow:0 1px 2px rgba(0,0,0,0.5);box-shadow:0 0 15px rgba(255,140,0,0.6);">ЗАБРАТЬ</button>
+  `;
+  g.appendChild(card);
+  const btn = $('claimGiftBtn');
+  if (btn) btn.onclick = claimMondayGift;
+}
+
+function claimMondayGift() {
+  const now = Date.now();
+  if (save.mondayGiftClaimed) { showNotification('Подарок уже получен!'); return; }
+  if (save.mondayGiftEnd && now > save.mondayGiftEnd) { showNotification('Акция завершена!'); return; }
+
+  save.coins += 1000;
+  save.mondayGiftClaimed = true;
+  save.totalCoinsEarned = (save.totalCoinsEarned || 0) + 1000;
+  persistSave(true);
+  refreshMenu();
+  if ($('shopCoins')) $('shopCoins').textContent = save.coins;
+  renderPromo();
+  showNotification('Подарок получен: +1000 монет!');
+  addComboXp(25);
 }
 
 function openUpgrades() { refreshUpgradeScreen(); showScreen('upgradeScreen'); }
@@ -1348,4 +1463,4 @@ document.addEventListener('visibilitychange', () => { if (document.hidden && sta
 requestAnimationFrame(gameLoop);
 </script>
 </body>
- </html>
+       </html>
