@@ -410,7 +410,7 @@ const ENEMY_DATA = {
   'enemy-lava':         { hp: 60,  dmg: 14, speed: 1.1, size: 18, xp: 14, coins: 7,  color: '#ff4020', attackRate: 800,  range: 34, trail: true },
   'enemy-acid-spider':  { hp: 45,  dmg: 16, speed: 1.5, size: 16, xp: 12, coins: 6,  color: '#40ff40', attackRate: 700,  range: 30, jump: true },
   'enemy-shadow':       { hp: 55,  dmg: 18, speed: 1.2, size: 18, xp: 16, coins: 9,  color: '#8000ff', attackRate: 900,  range: 35, teleport: true },
-  'enemy-ghost-pumpkin':{ hp: 50,  dmg: 12, speed: 1.4, size: 17, xp: 13, coins: 7,  color: '#ff8c00', attackRate: 800,  range: 32, phase: true },
+  'enemy-ghost-pumpkin':{ hp: 50,  dmg: 12, speed: 1.4, size: 17, xp: 13, coins: 7,  color: '#ff8c00', attackRate: 800,  range: 32 },
 };
 
 const ICON_DEFS = {
@@ -981,7 +981,6 @@ function updatePassTabGlow() {
   btn.classList.toggle('has-reward', hasUnclaimedRewards());
 }
 
-// ====== ГЕНЕРАЦИЯ СТЕН ======
 function generateWalls(world) {
   const walls = [];
   const wallCount = 15 + Math.floor(Math.random() * 10);
@@ -1455,7 +1454,6 @@ function render() {
   ctx.save();
   ctx.translate(-state.camera.x, -state.camera.y);
 
-  // ===== СТЕНЫ =====
   state.walls.forEach(wall => {
     ctx.fillStyle = wall.color + '55';
     ctx.fillRect(wall.x, wall.y, wall.w, wall.h);
@@ -1658,4 +1656,4 @@ document.addEventListener('visibilitychange', () => { if (document.hidden && sta
 requestAnimationFrame(gameLoop);
 </script>
 </body>
-       </html>
+                                                                                                                                                                                                                                                                                                                                                                                  </html>
